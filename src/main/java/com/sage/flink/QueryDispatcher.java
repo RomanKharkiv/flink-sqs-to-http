@@ -4,7 +4,6 @@ import com.sage.flink.utils.RowToJsonConverter;
 import com.sage.flink.utils.TableExecutor;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 import org.json.JSONObject;
@@ -22,14 +21,11 @@ public class QueryDispatcher implements FlatMapFunction<String, QueryDispatcher.
     }
     public record LabeledRow(Row row, String[] fieldNames) {}
 
-
-    // Query Type 1 — Tenant Lookup
     private static final Pattern TENANT_LOOKUP_PATTERN = Pattern.compile(
             "SELECT \\* FROM sbca_bronze\\.businesses WHERE tenant_id = '([a-zA-Z0-9]+)'",
             Pattern.CASE_INSENSITIVE
     );
 
-    // Query Type 2 — Recent business activity with filters + limit
     private static final Pattern RECENT_ACTIVITY_PATTERN = Pattern.compile(
             "SELECT .* FROM sbca_bronze\\.businesses WHERE \\(updated_at >= CURRENT_TIMESTAMP - INTERVAL .* DAY .*\\) .*;",
             Pattern.CASE_INSENSITIVE | Pattern.DOTALL
@@ -101,10 +97,6 @@ public class QueryDispatcher implements FlatMapFunction<String, QueryDispatcher.
         }
     }
 
-
-    /**
-     * Try to match the query string to a known pattern.
-     */
     private QueryMatch matchQueryType(String query) {
         Matcher tenant = TENANT_LOOKUP_PATTERN.matcher(query);
         if (tenant.matches()) return new QueryMatch("tenant_lookup", tenant);
@@ -115,8 +107,5 @@ public class QueryDispatcher implements FlatMapFunction<String, QueryDispatcher.
         return null;
     }
 
-    /**
-     * Simple record to carry matched query type and its Matcher.
-     */
     private record QueryMatch(String type, Matcher matcher) {}
 }

@@ -1,12 +1,10 @@
 import com.sage.flink.ApiHttp2SinkFunction;
 import com.sage.flink.QueryDispatcher;
-import com.sage.flink.QueryDispatcher.LabeledRow;
 import com.sage.flink.Config;
 import org.apache.flink.types.Row;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;

@@ -1,14 +1,8 @@
 package com.sage.flink;
 
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 
-/**
- * Serializer for the SqsSplit — just writes/reads the splitId string.
- */
 public class SqsSplitSerializer implements SimpleVersionedSerializer<SqsSplit> {
 
     private static final int VERSION = 1;

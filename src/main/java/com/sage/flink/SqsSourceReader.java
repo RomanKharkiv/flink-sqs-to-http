@@ -14,12 +14,8 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * SourceReader that polls a single SQS queue for messages.
- */
 public class SqsSourceReader implements SourceReader<String, SqsSplit> {
 
     private final SqsClient sqsClient;
@@ -31,7 +27,7 @@ public class SqsSourceReader implements SourceReader<String, SqsSplit> {
     public SqsSourceReader(String queueUrl) {
         this.queueUrl = queueUrl;
         this.sqsClient = SqsClient.create();
-        this.context = null; // Not used in this simplified version
+        this.context = null;
     }
 
     @Override
@@ -82,12 +78,11 @@ public class SqsSourceReader implements SourceReader<String, SqsSplit> {
 
     @Override
     public void addSplits(List<SqsSplit> splits) {
-        // No-op: we only ever have 1 split
     }
 
     @Override
     public void notifyNoMoreSplits() {
-        // No-op
+
     }
 
     @Override
@@ -98,12 +93,10 @@ public class SqsSourceReader implements SourceReader<String, SqsSplit> {
 
     @Override
     public void handleSourceEvents(org.apache.flink.api.connector.source.SourceEvent sourceEvent) {
-        // No-op
     }
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) {
-        // No-op
     }
 
     @Override
@@ -113,11 +106,5 @@ public class SqsSourceReader implements SourceReader<String, SqsSplit> {
 
     @Override
     public void notifyCheckpointAborted(long checkpointId) {
-        // No-op
     }
-//
-//    @Override
-//    public void handleSourceEvent(int subtaskId, org.apache.flink.api.connector.source.SourceEvent sourceEvent) {
-//        // Optional: only for advanced custom event handling
-//    }
 }

@@ -4,9 +4,6 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.IOException;
 
-/**
- * Dummy serializer for a stateless SQS enumerator.
- */
 public class SqsEnumeratorSerializer implements SimpleVersionedSerializer<Void> {
 
     private static final int VERSION = 1;
@@ -18,7 +15,7 @@ public class SqsEnumeratorSerializer implements SimpleVersionedSerializer<Void> 
 
     @Override
     public byte[] serialize(Void enumeratorCheckpoint) {
-        return new byte[0]; // No state to serialize
+        return new byte[0];
     }
 
     @Override
@@ -26,6 +23,6 @@ public class SqsEnumeratorSerializer implements SimpleVersionedSerializer<Void> 
         if (version != VERSION) {
             throw new IOException("Unsupported version: " + version);
         }
-        return null; // No state to restore
+        return null;
     }
 }

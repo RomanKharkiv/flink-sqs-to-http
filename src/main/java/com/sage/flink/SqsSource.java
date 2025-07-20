@@ -1,15 +1,8 @@
 package com.sage.flink;
 
 import org.apache.flink.api.connector.source.*;
-
-import org.apache.flink.connector.base.source.reader.SourceReaderBase;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
-import software.amazon.awssdk.services.sqs.SqsClient;
-import software.amazon.awssdk.services.sqs.model.*;
-
-import java.util.Collections;
-import java.util.List;
 
 public class SqsSource implements Source<String, SqsSplit, Void> {
 

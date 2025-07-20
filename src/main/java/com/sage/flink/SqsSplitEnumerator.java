@@ -4,14 +4,11 @@ import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * A simple split enumerator that assigns one split representing the SQS queue.
- */
+
 public class SqsSplitEnumerator implements SplitEnumerator<SqsSplit, Void> {
 
     private final SplitEnumeratorContext<SqsSplit> context;
@@ -26,7 +23,6 @@ public class SqsSplitEnumerator implements SplitEnumerator<SqsSplit, Void> {
 
     @Override
     public void start() {
-        // No background threads required
     }
 
     @Override
@@ -54,26 +50,22 @@ public class SqsSplitEnumerator implements SplitEnumerator<SqsSplit, Void> {
 
     @Override
     public void addSplitsBack(List<SqsSplit> splits, int subtaskId) {
-        // No rebalancing implemented
     }
 
     @Override
     public Void snapshotState(long checkpointId) {
-        return null;  // No state to persist
+        return null;
     }
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) {
-        // No-op
     }
 
     @Override
     public void handleSourceEvent(int subtaskId, org.apache.flink.api.connector.source.SourceEvent sourceEvent) {
-        // No-op
     }
 
     @Override
     public void close() throws IOException {
-        // No cleanup needed
     }
 }

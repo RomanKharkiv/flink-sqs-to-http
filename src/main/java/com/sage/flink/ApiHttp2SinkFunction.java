@@ -8,7 +8,6 @@ import java.net.http.HttpResponse;
 import com.sage.flink.utils.RowToJsonConverter;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.types.Row;
 import org.json.JSONObject;
 
 public class ApiHttp2SinkFunction extends RichSinkFunction<QueryDispatcher.LabeledRow> {

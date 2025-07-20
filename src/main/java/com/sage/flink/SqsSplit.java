@@ -1,12 +1,8 @@
 package com.sage.flink;
 
 import org.apache.flink.api.connector.source.SourceSplit;
-
 import java.util.Objects;
 
-/**
- * A trivial split representing the entire SQS FIFO queue.
- */
 public class SqsSplit implements SourceSplit {
 
     private final String splitId;
