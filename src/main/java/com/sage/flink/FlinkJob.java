@@ -5,11 +5,9 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.table.api.TableResult;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import software.amazon.awssdk.services.sqs.endpoints.internal.Value;
+
 
 import static org.apache.http.impl.client.HttpClients.createDefault;
 

@@ -1,39 +1,45 @@
 package com.sage.flink;
 
-import java.io.InputStream;
-import java.util.Properties;
-
 public class Config {
 
-    private static final Properties props = new Properties();
-
-    static {
-        try (InputStream in = Config.class.getClassLoader().getResourceAsStream("config.properties")) {
-            if (in == null) throw new RuntimeException("config.properties not found");
-            props.load(in);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to load config.properties", e);
-        }
-    }
-
-    public static String get(String key) {
-        return props.getProperty(key);
-    }
-
-    // Convenience helpers
-    public static String apiEndpointUrl() {
-        return get("api.endpoint.url");
-    }
-
     public static String sqsQueueUrl() {
-        return get("aws.sqs.queue.url");
+        return getEnvOrThrow("SQS_QUEUE_URL");
+    }
+
+    public static String apiEndpointUrl() {
+        return getEnvOrThrow("API_ENDPOINT_URL");
     }
 
     public static String awsRegion() {
-        return get("aws.region");
+        return getEnv("AWS_REGION", "eu-west-1");
+    }
+
+    public static String awsAccessKeyId() {
+        return getEnvOrThrow("AWS_ACCESS_KEY_ID");
+    }
+
+    public static String awsSecretAccessKey() {
+        return getEnvOrThrow("AWS_SECRET_ACCESS_KEY");
+    }
+
+    public static String flinkAppName() {
+        return getEnv("FLINK_APP_NAME", "flink-bank-matching");
     }
 
     public static String awsGlueDatabase() {
-        return get("aws.glue.database");
+        return getEnv("AWS_GLUE_DATABASE", "sbca_bronze");
+    }
+
+    private static String getEnvOrThrow(String key) {
+        String value = System.getenv(key);
+        if (value == null || value.isBlank()) {
+            throw new IllegalStateException("Missing required environment variable: " + key);
+        }
+        return value;
+    }
+
+    private static String getEnv(String key, String defaultValue) {
+        String value = System.getenv(key);
+        return (value != null && !value.isBlank()) ? value : defaultValue;
     }
 }
