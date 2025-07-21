@@ -207,7 +207,6 @@ public class CustomSqsSource<OUT> implements Source<OUT, CustomSqsSource.SqsSpli
         }
     }
 
-    // Source reader that reads from SQS
     private static class SqsSourceReader<OUT> implements SourceReader<OUT, SqsSplit> {
         private final SourceReaderContext context;
         private final Queue<SqsSplit> assignedSplits;
@@ -238,7 +237,6 @@ public class CustomSqsSource<OUT> implements Source<OUT, CustomSqsSource.SqsSpli
 
         @Override
         public void start() {
-            // Initialize the SQS client
             this.sqsClient = SqsClient.builder()
                     .region(Region.of(region))
                     .build();
@@ -285,7 +283,7 @@ public class CustomSqsSource<OUT> implements Source<OUT, CustomSqsSource.SqsSpli
                 return InputStatus.NOTHING_AVAILABLE;
             }
 
-            // Poll for messages from SQS
+            LOG.info("Poll for messages from SQS");
             ReceiveMessageRequest receiveRequest = ReceiveMessageRequest.builder()
                     .queueUrl(queueUrl)
                     .maxNumberOfMessages(batchSize)
@@ -296,28 +294,23 @@ public class CustomSqsSource<OUT> implements Source<OUT, CustomSqsSource.SqsSpli
             List<Message> messages = response.messages();
 
             if (messages.isEmpty()) {
-                // No messages available, wait before polling again
                 Thread.sleep(pollingIntervalMillis);
                 return InputStatus.NOTHING_AVAILABLE;
             }
 
-            // Process received messages
             for (Message message : messages) {
                 try {
-                    // Deserialize the message
+                    LOG.info("Raw SQS message: {}", message.body());
                     OUT element = deserializationSchema.deserialize(message.body().getBytes());
-
-                    // Emit the record
+                    LOG.info("Deserialized: {}", element);
                     output.collect(element);
 
-                    // Delete the message from the queue
                     DeleteMessageRequest deleteRequest = DeleteMessageRequest.builder()
                             .queueUrl(queueUrl)
                             .receiptHandle(message.receiptHandle())
                             .build();
                     sqsClient.deleteMessage(deleteRequest);
                 } catch (Exception e) {
-                    // Log the error but continue processing other messages
                     System.err.println("Error processing SQS message: " + e.getMessage());
                 }
             }
@@ -326,7 +319,6 @@ public class CustomSqsSource<OUT> implements Source<OUT, CustomSqsSource.SqsSpli
         }
     }
 
-    // Serializer for SqsSplit
     private static class SqsSplitSerializer implements SimpleVersionedSerializer<SqsSplit> {
         @Override
         public int getVersion() {
@@ -348,7 +340,6 @@ public class CustomSqsSource<OUT> implements Source<OUT, CustomSqsSource.SqsSpli
         }
     }
 
-    // Serializer for SqsEnumeratorState
     private static class SqsEnumeratorStateSerializer implements SimpleVersionedSerializer<SqsEnumeratorState> {
         @Override
         public int getVersion() {
@@ -370,10 +361,9 @@ public class CustomSqsSource<OUT> implements Source<OUT, CustomSqsSource.SqsSpli
         }
     }
 
-    // Builder class for CustomSqsSource
     public static class Builder<OUT> {
         private String queueUrl;
-        private String region = "us-east-1"; // Default region
+        private String region = "eu-west-1";
         private DeserializationSchema<OUT> deserializationSchema;
         private int batchSize = 10;
         private int pollingIntervalMillis = 1000;

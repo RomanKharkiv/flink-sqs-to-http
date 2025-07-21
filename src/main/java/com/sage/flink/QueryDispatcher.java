@@ -3,7 +3,6 @@ package com.sage.flink;
 import com.sage.flink.utils.FlinkTableExecutor;
 import com.sage.flink.utils.RowToJsonConverter;
 import com.sage.flink.utils.TableExecutor;
-import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;

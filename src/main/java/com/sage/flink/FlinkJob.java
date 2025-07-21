@@ -5,6 +5,7 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -71,7 +72,13 @@ public class FlinkJob {
             sqsMessages
                     .flatMap(new QueryDispatcher())
                     .returns(TypeInformation.of(QueryDispatcher.LabeledRow.class))
-                    .addSink(new ApiSinkFunction(httpClient, endPointUrl));
+//                    .addSink(new ApiSinkFunction(httpClient, endPointUrl));
+                    .addSink(new SinkFunction<QueryDispatcher.LabeledRow>() {
+                        @Override
+                        public void invoke(QueryDispatcher.LabeledRow value, Context context) {
+                            System.out.println("Got row: " + value);
+                        }
+                    });
         }
 
         env.execute("Flink Iceberg Query to external API");
