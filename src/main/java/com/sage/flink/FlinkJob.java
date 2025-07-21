@@ -2,6 +2,7 @@ package com.sage.flink;
 
 import com.sage.flink.utils.FlinkTableExecutor;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -9,6 +10,8 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.Collector;
 import org.apache.http.impl.client.CloseableHttpClient;
 import com.amazonaws.services.kinesisanalytics.runtime.KinesisAnalyticsRuntime;
 import org.slf4j.Logger;
@@ -50,7 +53,6 @@ public class FlinkJob {
         );
 
 
-
         CustomSqsSource<String> sqsSource = CustomSqsSource.<String>builder()
                 .queueUrl(sqsQueueUrl)
                 .region(awsRegion)
@@ -70,9 +72,15 @@ public class FlinkJob {
         try (CloseableHttpClient httpClient = createDefault()) {
             LOG.info("Created DataStream from SQS!");
             sqsMessages
-                    .flatMap(new QueryDispatcher())
-                    .returns(TypeInformation.of(QueryDispatcher.LabeledRow.class))
+//                    .flatMap(new QueryDispatcher())
+//                    .returns(TypeInformation.of(QueryDispatcher.LabeledRow.class))
 //                    .addSink(new ApiSinkFunction(httpClient, endPointUrl));
+                    .flatMap(new FlatMapFunction<String, QueryDispatcher.LabeledRow>() {
+                        @Override
+                        public void flatMap(String value, Collector<QueryDispatcher.LabeledRow> out) {
+                            out.collect(new QueryDispatcher.LabeledRow(new Row(1), new String[]{"test","TTTT"}));
+                        }
+                    })
                     .addSink(new SinkFunction<QueryDispatcher.LabeledRow>() {
                         @Override
                         public void invoke(QueryDispatcher.LabeledRow value, Context context) {
