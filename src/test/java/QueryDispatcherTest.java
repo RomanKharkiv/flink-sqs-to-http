@@ -66,9 +66,9 @@ class QueryDispatcherTest {
         assertEquals(1, result.size());
 
         LabeledRow labeled = result.get(0);
-        assertEquals(42, labeled.row().getField(0));
-        assertEquals("Hello", labeled.row().getField(1));
-        assertEquals("name", labeled.fieldNames()[1]);
+        assertEquals(42, labeled.getRow().getField(0));
+        assertEquals("Hello", labeled.getRow().getField(1));
+        assertEquals("name", labeled.getFieldNames()[1]);
     }
 
     @Test
@@ -122,15 +122,15 @@ class QueryDispatcherTest {
         QueryDispatcher.LabeledRow labeled1 = result.get(0);
         QueryDispatcher.LabeledRow labeled2 = result.get(1);
 
-        assertEquals(101, labeled1.row().getField(0));
-        assertEquals("Company A", labeled1.row().getField(1));
+        assertEquals(101, labeled1.getRow().getField(0));
+        assertEquals("Company A", labeled1.getRow().getField(1));
 
-        assertEquals(102, labeled2.row().getField(0));
-        assertEquals("Company B", labeled2.row().getField(1));
+        assertEquals(102, labeled2.getRow().getField(0));
+        assertEquals("Company B", labeled2.getRow().getField(1));
 
-        assertEquals("id", labeled1.fieldNames()[0]);
-        assertEquals("name", labeled1.fieldNames()[1]);
-        assertEquals("updated_at", labeled1.fieldNames()[2]);
+        assertEquals("id", labeled1.getFieldNames()[0]);
+        assertEquals("name", labeled1.getFieldNames()[1]);
+        assertEquals("updated_at", labeled1.getFieldNames()[2]);
     }
 
 }

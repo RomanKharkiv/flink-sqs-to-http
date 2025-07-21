@@ -19,7 +19,24 @@ public class QueryDispatcher implements FlatMapFunction<String, QueryDispatcher.
     public QueryDispatcher(TableExecutor executor) {
         this.executor = executor;
     }
-    public record LabeledRow(Row row, String[] fieldNames) {}
+
+    public static class LabeledRow {
+        private final Row row;
+        private final String[] fieldNames;
+
+        public LabeledRow(Row row, String[] fieldNames) {
+            this.row = row;
+            this.fieldNames = fieldNames;
+        }
+
+        public Row getRow() {
+            return row;
+        }
+
+        public String[] getFieldNames() {
+            return fieldNames;
+        }
+    }
 
     private static final Pattern TENANT_LOOKUP_PATTERN = Pattern.compile(
             "SELECT \\* FROM sbca_bronze\\.businesses WHERE tenant_id = '([a-zA-Z0-9]+)'",
@@ -32,7 +49,7 @@ public class QueryDispatcher implements FlatMapFunction<String, QueryDispatcher.
     );
 
     @Override
-    public void flatMap(String message, Collector<LabeledRow> out) throws Exception {
+    public void flatMap(String message, Collector<LabeledRow> out) {
         try {
             JSONObject json = new JSONObject(message);
             String rawQuery = json.getString("query").trim();
@@ -44,10 +61,13 @@ public class QueryDispatcher implements FlatMapFunction<String, QueryDispatcher.
                 return;
             }
 
-            switch (match.type()) {
-                case "tenant_lookup" -> handleTenantLookup(match.matcher(), out);
-                case "recent_changes" -> handleRecentBusinessActivity(out);
-                default -> System.err.println("No handler for query type: " + match.type());
+            String type = match.getType();
+            if ("tenant_lookup".equals(type)) {
+                handleTenantLookup(match.getMatcher(), out);
+            } else if ("recent_changes".equals(type)) {
+                handleRecentBusinessActivity(out);
+            } else {
+                System.err.println("No handler for query type: " + type);
             }
 
         } catch (Exception e) {
@@ -72,13 +92,13 @@ public class QueryDispatcher implements FlatMapFunction<String, QueryDispatcher.
     private void handleRecentBusinessActivity(Collector<LabeledRow> out) {
         String query =
                 "SELECT id, name, updated_at, created_at, website, owner_id, voided_at, " +
-                        "_airbyte_extracted_at, dms_timestamp, source, tenant_id " +
-                        "FROM sbca_bronze.businesses " +
-                        "WHERE (updated_at >= CURRENT_TIMESTAMP - INTERVAL '2' DAY " +
-                        "OR (website IS NULL OR TRIM(website) = '') OR owner_id IS NULL) " +
-                        "AND voided_at IS NULL " +
-                        "ORDER BY updated_at DESC " +
-                        "LIMIT 100";
+                "_airbyte_extracted_at, dms_timestamp, source, tenant_id " +
+                "FROM sbca_bronze.businesses " +
+                "WHERE (updated_at >= CURRENT_TIMESTAMP - INTERVAL '2' DAY " +
+                "OR (website IS NULL OR TRIM(website) = '') OR owner_id IS NULL) " +
+                "AND voided_at IS NULL " +
+                "ORDER BY updated_at DESC " +
+                "LIMIT 100";
         try {
             executeQuery(query, out);
         } catch (Exception e) {
@@ -90,8 +110,10 @@ public class QueryDispatcher implements FlatMapFunction<String, QueryDispatcher.
         Table result = executor.sqlQuery(query);
         String[] fieldNames = RowToJsonConverter.extractFieldNames(result);
 
-        try (var iterator = executor.collect(result)) {
-            iterator.forEachRemaining(row -> out.collect(new LabeledRow(row, fieldNames)));
+        try (AutoCloseableIterator<Row> iterator = new AutoCloseableIterator<>(executor.collect(result))) {
+            while (iterator.hasNext()) {
+                out.collect(new LabeledRow(iterator.next(), fieldNames));
+            }
         } catch (IOException e) {
             throw new RuntimeException("Failed to collect query results", e);
         }
@@ -107,5 +129,43 @@ public class QueryDispatcher implements FlatMapFunction<String, QueryDispatcher.
         return null;
     }
 
-    private record QueryMatch(String type, Matcher matcher) {}
+    private static class QueryMatch {
+        private final String type;
+        private final Matcher matcher;
+
+        public QueryMatch(String type, Matcher matcher) {
+            this.type = type;
+            this.matcher = matcher;
+        }
+
+        public String getType() {
+            return type;
+        }
+
+        public Matcher getMatcher() {
+            return matcher;
+        }
+    }
+
+    // Helper to auto-close iterator for Java 11 try-with-resources
+    private static class AutoCloseableIterator<T> implements AutoCloseable {
+        private final java.util.Iterator<T> iterator;
+
+        public AutoCloseableIterator(java.util.Iterator<T> iterator) {
+            this.iterator = iterator;
+        }
+
+        public boolean hasNext() {
+            return iterator.hasNext();
+        }
+
+        public T next() {
+            return iterator.next();
+        }
+
+        @Override
+        public void close() {
+            // no-op since the underlying collect() result is not AutoCloseable in Java 11
+        }
+    }
 }

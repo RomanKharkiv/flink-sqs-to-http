@@ -29,7 +29,7 @@ public class ApiHttp2SinkFunction extends RichSinkFunction<QueryDispatcher.Label
 
     @Override
     public void invoke(QueryDispatcher.LabeledRow row, Context context) {
-        JSONObject json = RowToJsonConverter.convert(row.row(), row.fieldNames());
+        JSONObject json = RowToJsonConverter.convert(row.getRow(), row.getFieldNames());
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(Config.apiEndpointUrl()))

@@ -51,6 +51,6 @@ public class FlinkJob {
                     .addSink(new ApiSinkFunction(httpClient, endPointUrl));
         }
 
-        env.execute("Flink Iceberg Query Dispatcher");
+        env.execute("Flink Iceberg Query to external API");
     }
 }

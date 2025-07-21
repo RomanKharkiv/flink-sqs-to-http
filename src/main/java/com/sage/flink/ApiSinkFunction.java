@@ -31,7 +31,7 @@ public class ApiSinkFunction extends RichSinkFunction<QueryDispatcher.LabeledRow
     @Override
     public void invoke(QueryDispatcher.LabeledRow labeled, Context context) {
         try {
-            JSONObject json = RowToJsonConverter.convert(labeled.row(), labeled.fieldNames());
+            JSONObject json = RowToJsonConverter.convert(labeled.getRow(), labeled.getFieldNames());
 
             HttpPost post = new HttpPost(endPointUrl);
             post.setHeader("Content-Type", "application/json");
