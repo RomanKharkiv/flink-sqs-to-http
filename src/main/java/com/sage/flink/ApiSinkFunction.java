@@ -15,9 +15,11 @@ import com.sage.flink.utils.RowToJsonConverter;
 public class ApiSinkFunction extends RichSinkFunction<QueryDispatcher.LabeledRow> {
 
     private transient CloseableHttpClient httpClient;
+    private final String endPointUrl;
 
-    public ApiSinkFunction(CloseableHttpClient httpClient) {
+    public ApiSinkFunction(CloseableHttpClient httpClient, String endPointUrl) {
         this.httpClient = httpClient;
+        this.endPointUrl = endPointUrl;
     }
 
 
@@ -31,7 +33,7 @@ public class ApiSinkFunction extends RichSinkFunction<QueryDispatcher.LabeledRow
         try {
             JSONObject json = RowToJsonConverter.convert(labeled.row(), labeled.fieldNames());
 
-            HttpPost post = new HttpPost(Config.apiEndpointUrl());
+            HttpPost post = new HttpPost(endPointUrl);
             post.setHeader("Content-Type", "application/json");
             post.setEntity(new StringEntity(json.toString(), StandardCharsets.UTF_8));
 

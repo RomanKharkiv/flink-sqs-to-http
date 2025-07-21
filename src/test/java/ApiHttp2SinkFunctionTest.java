@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class ApiHttp2SinkFunctionTest {
+    String endPointUrl = Config.apiEndpointUrl();
 
     @Test
     void testInvokeSendsHttpRequest() {
@@ -40,7 +41,7 @@ class ApiHttp2SinkFunctionTest {
         verify(mockClient).sendAsync(requestCaptor.capture(), eq(HttpResponse.BodyHandlers.discarding()));
 
         HttpRequest sent = requestCaptor.getValue();
-        assertEquals(Config.apiEndpointUrl(), sent.uri().toString());
+        assertEquals(endPointUrl, sent.uri().toString());
         assertEquals("application/json", sent.headers().firstValue("Content-Type").orElse(""));
         assertEquals("POST", sent.method());
         assertTrue(sent.bodyPublisher().isPresent());

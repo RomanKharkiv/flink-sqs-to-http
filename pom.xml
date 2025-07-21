@@ -23,6 +23,12 @@
             <artifactId>flink-core</artifactId>
             <version>1.19.1</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-kinesisanalytics-runtime -->
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-kinesisanalytics-runtime</artifactId>
+            <version>1.2.0</version>
+        </dependency>
 
         <dependency>
             <groupId>org.apache.flink</groupId>

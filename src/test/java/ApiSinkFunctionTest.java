@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import static org.mockito.Mockito.*;
 
 class ApiSinkFunctionTest {
+    String endPointUrl = Config.apiEndpointUrl();
 
     @Test
     void testInvokePostsJsonToHttpClient() throws Exception {
@@ -20,7 +21,7 @@ class ApiSinkFunctionTest {
 
         when(mockClient.execute(any(HttpPost.class))).thenReturn(mockResponse);
 
-        ApiSinkFunction sink = new ApiSinkFunction(mockClient);
+        ApiSinkFunction sink = new ApiSinkFunction(mockClient, endPointUrl);
 
         Row row = Row.of(1, "Test");
         String[] fields = {"id", "name"};
@@ -33,7 +34,7 @@ class ApiSinkFunctionTest {
         verify(mockClient, times(1)).execute(argThat(post -> {
             try {
                 return post instanceof HttpPost &&
-                       ((HttpPost) post).getURI().toString().equals(Config.apiEndpointUrl()) &&
+                       ((HttpPost) post).getURI().toString().equals(endPointUrl) &&
                        ((HttpPost) post).getEntity().getContentLength() > 0;
             } catch (Exception e) {
                 return false;
@@ -46,7 +47,7 @@ class ApiSinkFunctionTest {
     @Test
     void testCloseClosesHttpClient() throws Exception {
         CloseableHttpClient mockClient = mock(CloseableHttpClient.class);
-        ApiSinkFunction sink = new ApiSinkFunction(mockClient);
+        ApiSinkFunction sink = new ApiSinkFunction(mockClient, endPointUrl);
 
         sink.close();
 
