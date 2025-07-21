@@ -13,9 +13,11 @@ import org.json.JSONObject;
 public class ApiHttp2SinkFunction extends RichSinkFunction<QueryDispatcher.LabeledRow> {
 
     private transient HttpClient httpClient;
+    private String endPointUrl;
 
-    public ApiHttp2SinkFunction(HttpClient client) {
+    public ApiHttp2SinkFunction(HttpClient client, String endPointUrl) {
         this.httpClient = client;
+        this.endPointUrl = endPointUrl;
     }
 
     public ApiHttp2SinkFunction() {}
@@ -32,7 +34,7 @@ public class ApiHttp2SinkFunction extends RichSinkFunction<QueryDispatcher.Label
         JSONObject json = RowToJsonConverter.convert(row.getRow(), row.getFieldNames());
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(Config.apiEndpointUrl()))
+                .uri(URI.create(endPointUrl))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(json.toString()))
                 .build();

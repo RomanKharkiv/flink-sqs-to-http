@@ -1,23 +1,41 @@
 package com.sage.flink;
 
+import com.sage.flink.utils.FlinkTableExecutor;
 import com.sage.flink.utils.RowToJsonConverter;
 import com.sage.flink.utils.TableExecutor;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class QueryDispatcher implements FlatMapFunction<String, QueryDispatcher.LabeledRow> {
+public class QueryDispatcher extends RichFlatMapFunction<String, QueryDispatcher.LabeledRow> {
+    private static final Logger LOG = LoggerFactory.getLogger(QueryDispatcher.class);
 
-    private final TableExecutor executor;
+    private TableExecutor executor;
 
-    public QueryDispatcher(TableExecutor executor) {
-        this.executor = executor;
+    public QueryDispatcher() {
+        LOG.info("Constructor QueryDispatcher!");
+    }
+
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        LOG.info("QueryDispatcher open()!");
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+        executor = new FlinkTableExecutor(tEnv);
+        LOG.info("Created FlinkTableExecutor!");
+        super.open(parameters);
     }
 
     public static class LabeledRow {
@@ -51,6 +69,8 @@ public class QueryDispatcher implements FlatMapFunction<String, QueryDispatcher.
     @Override
     public void flatMap(String message, Collector<LabeledRow> out) {
         try {
+            LOG.info("QueryDispatcher FlatMap message: {}", message);
+
             JSONObject json = new JSONObject(message);
             String rawQuery = json.getString("query").trim();
 

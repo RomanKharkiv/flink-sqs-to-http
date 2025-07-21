@@ -1,22 +1,20 @@
 package com.sage.flink;
 
+import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
-import org.apache.flink.api.connector.source.ReaderOutput;
-import org.apache.flink.connector.base.source.reader.SourceReaderBase;
-import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.io.InputStatus;
-
 import software.amazon.awssdk.services.sqs.SqsClient;
-import software.amazon.awssdk.services.sqs.model.*;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
+import software.amazon.awssdk.services.sqs.model.Message;
+import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 
-import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-public class SqsSourceReader implements SourceReader<String, SqsSplit> {
+public class SqsSourceReader implements SourceReader<String, SqsSplitCast> {
 
     private final SqsClient sqsClient;
     private final String queueUrl;
@@ -67,7 +65,7 @@ public class SqsSourceReader implements SourceReader<String, SqsSplit> {
     }
 
     @Override
-    public List<SqsSplit> snapshotState(long checkpointId) {
+    public List<SqsSplitCast> snapshotState(long checkpointId) {
         return Collections.emptyList();  // stateless
     }
 
@@ -77,7 +75,7 @@ public class SqsSourceReader implements SourceReader<String, SqsSplit> {
     }
 
     @Override
-    public void addSplits(List<SqsSplit> splits) {
+    public void addSplits(List<SqsSplitCast> splits) {
     }
 
     @Override

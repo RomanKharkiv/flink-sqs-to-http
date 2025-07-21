@@ -1,5 +1,4 @@
 import com.sage.flink.ApiSinkFunction;
-import com.sage.flink.Config;
 import com.sage.flink.QueryDispatcher.LabeledRow;
 import org.apache.flink.types.Row;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -11,7 +10,7 @@ import org.junit.jupiter.api.Test;
 import static org.mockito.Mockito.*;
 
 class ApiSinkFunctionTest {
-    String endPointUrl = Config.apiEndpointUrl();
+    String endPointUrl = System.getenv("api.endpoint.url");
 
     @Test
     void testInvokePostsJsonToHttpClient() throws Exception {

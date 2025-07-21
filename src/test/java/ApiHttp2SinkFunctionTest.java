@@ -1,6 +1,5 @@
 import com.sage.flink.ApiHttp2SinkFunction;
 import com.sage.flink.QueryDispatcher;
-import com.sage.flink.Config;
 import org.apache.flink.types.Row;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -14,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class ApiHttp2SinkFunctionTest {
-    String endPointUrl = Config.apiEndpointUrl();
+    String endPointUrl = System.getenv("api.endpoint.url");
 
     @Test
     void testInvokeSendsHttpRequest() {
@@ -27,7 +26,7 @@ class ApiHttp2SinkFunctionTest {
 
         when(mockClient.sendAsync(any(), any())).thenReturn(dummyFuture);
 
-        ApiHttp2SinkFunction sink = new ApiHttp2SinkFunction(mockClient);
+        ApiHttp2SinkFunction sink = new ApiHttp2SinkFunction(mockClient, endPointUrl);
 
         Row row = Row.of(1, "test");
         String[] fieldNames = {"id", "name"};

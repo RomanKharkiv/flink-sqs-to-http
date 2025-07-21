@@ -3,7 +3,7 @@ package com.sage.flink;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import java.io.IOException;
 
-public class SqsSplitSerializer implements SimpleVersionedSerializer<SqsSplit> {
+public class SqsSplitSerializer implements SimpleVersionedSerializer<SqsSplitCast> {
 
     private static final int VERSION = 1;
 
@@ -13,7 +13,7 @@ public class SqsSplitSerializer implements SimpleVersionedSerializer<SqsSplit> {
     }
 
     @Override
-    public byte[] serialize(SqsSplit split) throws IOException {
+    public byte[] serialize(SqsSplitCast split) throws IOException {
         byte[] idBytes = split.splitId().getBytes("UTF-8");
         byte[] output = new byte[4 + idBytes.length];
 
@@ -27,7 +27,7 @@ public class SqsSplitSerializer implements SimpleVersionedSerializer<SqsSplit> {
     }
 
     @Override
-    public SqsSplit deserialize(int version, byte[] serialized) throws IOException {
+    public SqsSplitCast deserialize(int version, byte[] serialized) throws IOException {
         if (version != VERSION) {
             throw new IOException("Unsupported version: " + version);
         }
@@ -38,6 +38,6 @@ public class SqsSplitSerializer implements SimpleVersionedSerializer<SqsSplit> {
                 (serialized[3] & 0xFF);
 
         String id = new String(serialized, 4, len, "UTF-8");
-        return new SqsSplit(id);
+        return new SqsSplitCast(id);
     }
 }

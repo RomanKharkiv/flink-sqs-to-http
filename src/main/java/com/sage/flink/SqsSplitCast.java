@@ -3,11 +3,11 @@ package com.sage.flink;
 import org.apache.flink.api.connector.source.SourceSplit;
 import java.util.Objects;
 
-public class SqsSplit implements SourceSplit {
+public class SqsSplitCast implements SourceSplit {
 
     private final String splitId;
 
-    public SqsSplit(String splitId) {
+    public SqsSplitCast(String splitId) {
         this.splitId = splitId;
     }
 
@@ -24,8 +24,8 @@ public class SqsSplit implements SourceSplit {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof SqsSplit)) return false;
-        SqsSplit that = (SqsSplit) o;
+        if (!(o instanceof SqsSplitCast)) return false;
+        SqsSplitCast that = (SqsSplitCast) o;
         return Objects.equals(splitId, that.splitId);
     }
 

@@ -9,14 +9,14 @@ import java.util.List;
 import java.util.Set;
 
 
-public class SqsSplitEnumerator implements SplitEnumerator<SqsSplit, Void> {
+public class SqsSplitEnumerator implements SplitEnumerator<SqsSplitCast, Void> {
 
-    private final SplitEnumeratorContext<SqsSplit> context;
+    private final SplitEnumeratorContext<SqsSplitCast> context;
     private final String queueUrl;
     private final Set<Integer> readersAwaitingAssignment = new HashSet<>();
     private boolean splitAssigned = false;
 
-    public SqsSplitEnumerator(String queueUrl, SplitEnumeratorContext<SqsSplit> context) {
+    public SqsSplitEnumerator(String queueUrl, SplitEnumeratorContext<SqsSplitCast> context) {
         this.queueUrl = queueUrl;
         this.context = context;
     }
@@ -40,7 +40,7 @@ public class SqsSplitEnumerator implements SplitEnumerator<SqsSplit, Void> {
     private void assignSplitIfNeeded() {
         if (!splitAssigned && !readersAwaitingAssignment.isEmpty()) {
             int readerId = readersAwaitingAssignment.iterator().next();
-            SqsSplit split = new SqsSplit("sqs-queue-0");
+            SqsSplitCast split = new SqsSplitCast("sqs-queue-0");
             context.assignSplit(split, readerId);
             context.signalNoMoreSplits(readerId);
             splitAssigned = true;
@@ -49,7 +49,7 @@ public class SqsSplitEnumerator implements SplitEnumerator<SqsSplit, Void> {
     }
 
     @Override
-    public void addSplitsBack(List<SqsSplit> splits, int subtaskId) {
+    public void addSplitsBack(List<SqsSplitCast> splits, int subtaskId) {
     }
 
     @Override

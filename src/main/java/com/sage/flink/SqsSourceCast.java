@@ -4,11 +4,11 @@ import org.apache.flink.api.connector.source.*;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 
-public class SqsSource implements Source<String, SqsSplit, Void> {
+public class SqsSourceCast implements Source<String, SqsSplitCast, Void> {
 
     private final String queueUrl;
 
-    public SqsSource(String queueUrl) {
+    public SqsSourceCast(String queueUrl) {
         this.queueUrl = queueUrl;
     }
 
@@ -19,22 +19,22 @@ public class SqsSource implements Source<String, SqsSplit, Void> {
 
 
     @Override
-    public SourceReader<String, SqsSplit> createReader(SourceReaderContext context) {
+    public SourceReader<String, SqsSplitCast> createReader(SourceReaderContext context) {
         return new SqsSourceReader(queueUrl);
     }
 
     @Override
-    public SplitEnumerator<SqsSplit, Void> createEnumerator(SplitEnumeratorContext<SqsSplit> context) {
+    public SplitEnumerator<SqsSplitCast, Void> createEnumerator(SplitEnumeratorContext<SqsSplitCast> context) {
         return new SqsSplitEnumerator(queueUrl, context);
     }
 
     @Override
-    public SplitEnumerator<SqsSplit, Void> restoreEnumerator(SplitEnumeratorContext<SqsSplit> context, Void checkpoint) {
+    public SplitEnumerator<SqsSplitCast, Void> restoreEnumerator(SplitEnumeratorContext<SqsSplitCast> context, Void checkpoint) {
         return new SqsSplitEnumerator(queueUrl, context);
     }
 
     @Override
-    public SimpleVersionedSerializer<SqsSplit> getSplitSerializer() {
+    public SimpleVersionedSerializer<SqsSplitCast> getSplitSerializer() {
         return new SqsSplitSerializer();
     }
 
