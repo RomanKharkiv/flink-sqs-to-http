@@ -287,13 +287,14 @@ public class CustomSqsSource<OUT> implements Source<OUT, CustomSqsSource.SqsSpli
             ReceiveMessageRequest receiveRequest = ReceiveMessageRequest.builder()
                     .queueUrl(queueUrl)
                     .maxNumberOfMessages(batchSize)
-                    .waitTimeSeconds(1) // Short polling to avoid blocking
+                    .waitTimeSeconds(20) // Short polling to avoid blocking
                     .build();
 
             ReceiveMessageResponse response = sqsClient.receiveMessage(receiveRequest);
             List<Message> messages = response.messages();
 
             if (messages.isEmpty()) {
+                LOG.info("Raw SQS message is empty");
                 Thread.sleep(pollingIntervalMillis);
                 return InputStatus.NOTHING_AVAILABLE;
             }

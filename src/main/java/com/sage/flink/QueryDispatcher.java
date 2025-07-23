@@ -1,41 +1,178 @@
 package com.sage.flink;
 
+import com.amazonaws.services.kinesisanalytics.runtime.KinesisAnalyticsRuntime;
 import com.sage.flink.utils.FlinkTableExecutor;
 import com.sage.flink.utils.RowToJsonConverter;
 import com.sage.flink.utils.TableExecutor;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
+import org.apache.iceberg.flink.FlinkCatalog;
+import org.apache.hadoop.conf.Configuration;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class QueryDispatcher extends RichFlatMapFunction<String, QueryDispatcher.LabeledRow> {
+    private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(QueryDispatcher.class);
 
-    private TableExecutor executor;
+    private transient FlinkTableExecutor executor;
 
     public QueryDispatcher() {
-        LOG.info("Constructor QueryDispatcher!");
     }
 
     @Override
     public void open(Configuration parameters) throws Exception {
         LOG.info("QueryDispatcher open()!");
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
-        executor = new FlinkTableExecutor(tEnv);
-        LOG.info("Created FlinkTableExecutor!");
+        try {
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+            executor = new FlinkTableExecutor(tEnv);
+
+            // Get properties from runtime configuration
+            Map<String, Properties> applicationProperties = KinesisAnalyticsRuntime.getApplicationProperties();
+            Properties flinkProperties = applicationProperties.getOrDefault("FlinkApplicationProperties", new Properties());
+
+            String region = flinkProperties.getProperty("aws.region", "eu-west-1");
+            String warehousePath = flinkProperties.getProperty("warehouse.path", "s3://sbca-bronze");
+            String dataCatalog = "AwsDataCatalog";
+
+            LOG.info("Using region: {} and warehouse path: {}", region, warehousePath);
+
+            // Register the AWS Glue catalog using FactoryUtil
+            try {
+//                String createCatalogSQL =
+//                        "CREATE CATALOG " + dataCatalog + " WITH (" +
+//                                "'type' = 'iceberg', " +
+//                                "'catalog-impl' = 'org.apache.iceberg.aws.glue.GlueCatalog', " +
+//                                "'io-impl' = 'org.apache.iceberg.aws.s3.S3FileIO', " +
+//                                "'warehouse' = '" + warehousePath + "', " +
+//                                "'aws.region' = '" + region + "'" +
+//                                ")";
+//
+//                LOG.info("Create catalog SQL: {}", createCatalogSQL);
+//                tEnv.executeSql(createCatalogSQL);
+//                LOG.info("Successfully created catalog: {}", dataCatalog);
+//
+//                // Use the catalog
+//                tEnv.executeSql("USE CATALOG " + dataCatalog);
+//                LOG.info("Using catalog: {}", dataCatalog);
+
+                Map<String, String> conf = new HashMap<>();
+                conf.put("type", "iceberg");
+                conf.put("catalog-name", dataCatalog);
+                conf.put("catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog");
+                conf.put("io-impl", "org.apache.iceberg.aws.s3.S3FileIO");
+                conf.put("warehouse", warehousePath); // base path
+                conf.put("aws.region", region);
+
+                // Create the catalog using FactoryUtil
+                Catalog flinkCatalog = FactoryUtil.createCatalog(
+                        dataCatalog,
+                        conf,
+                        new shaded.org.apache.hadoop.conf.Configuration(),
+                        Thread.currentThread().getContextClassLoader()
+                );
+                LOG.info("Registering AWS Glue catalog using FactoryUtil");
+
+                // Register the catalog with Flink
+                tEnv.registerCatalog(dataCatalog, flinkCatalog);
+                LOG.info("Successfully registered catalog: {}", dataCatalog);
+
+                // Use the registered catalog
+                tEnv.useCatalog(dataCatalog);
+                LOG.info("Using catalog: {}", dataCatalog);
+
+                // List databases in the catalog
+                try {
+                    LOG.info("===== LISTING DATABASES IN CATALOG =====");
+                    TableResult databasesResult = tEnv.executeSql("SHOW DATABASES");
+                    Iterator<Row> dbIterator = databasesResult.collect();
+                    int dbCount = 0;
+
+                    while (dbIterator.hasNext()) {
+                        Row row = dbIterator.next();
+                        String dbName = row.getField(0).toString();
+                        LOG.info("Found database: {}", dbName);
+                        dbCount++;
+
+                        // If we find sbca_bronze, check its tables
+                        if (dbName.equalsIgnoreCase("sbca_bronze")) {
+                            try {
+                                LOG.info("===== LISTING TABLES IN SBCA_BRONZE =====");
+                                tEnv.useDatabase(dbName);
+                                TableResult tablesResult = tEnv.executeSql("SHOW TABLES");
+                                Iterator<Row> tableIterator = tablesResult.collect();
+                                int tableCount = 0;
+
+                                while (tableIterator.hasNext()) {
+                                    Row tableRow = tableIterator.next();
+                                    String tableName = tableRow.getField(0).toString();
+                                    LOG.info("Found table: {}", tableName);
+                                    tableCount++;
+
+                                    // If we find the businesses table, test it
+                                    if (tableName.equalsIgnoreCase("businesses")) {
+                                        try {
+                                            LOG.info("===== TESTING BUSINESSES TABLE =====");
+                                            TableResult countResult = tEnv.executeSql("SELECT COUNT(*) FROM businesses");
+                                            Iterator<Row> countIterator = countResult.collect();
+                                            if (countIterator.hasNext()) {
+                                                Row countRow = countIterator.next();
+                                                LOG.info("Count of records in businesses table: {}", countRow.getField(0));
+                                            }
+                                        } catch (Exception e) {
+                                            LOG.error("Error testing businesses table: {}", e.getMessage(), e);
+                                        }
+                                    }
+                                }
+
+                                if (tableCount == 0) {
+                                    LOG.warn("No tables found in sbca_bronze database!");
+                                } else {
+                                    LOG.info("Total tables found in sbca_bronze: {}", tableCount);
+                                }
+                            } catch (Exception e) {
+                                LOG.error("Error listing tables in sbca_bronze: {}", e.getMessage(), e);
+                            }
+                        }
+                    }
+
+                    if (dbCount == 0) {
+                        LOG.warn("No databases found in catalog!");
+                    } else {
+                        LOG.info("Total databases found: {}", dbCount);
+                    }
+                } catch (Exception e) {
+                    LOG.error("Error listing databases: {}", e.getMessage(), e);
+                }
+
+            } catch (Exception e) {
+                LOG.error("Error registering AWS Glue catalog: {}", e.getMessage(), e);
+            }
+
+        } catch (Exception e) {
+            LOG.error("Error in QueryDispatcher.open(): {}", e.getMessage(), e);
+            throw e;
+        }
+
         super.open(parameters);
     }
+
 
     public static class LabeledRow {
         private final Row row;
@@ -56,12 +193,14 @@ public class QueryDispatcher extends RichFlatMapFunction<String, QueryDispatcher
     }
 
     private static final Pattern TENANT_LOOKUP_PATTERN = Pattern.compile(
-            "SELECT \\* FROM sbca_bronze\\.businesses WHERE tenant_id = '([a-zA-Z0-9]+)'",
+            "SELECT\\s+([^\\s]+|\\*|[^\\s]+(\\s*,\\s*[^\\s]+)*)\\s+FROM\\s+AwsDataCatalog\\.sbca_bronze\\.businesses\\s+WHERE\\s+tenant_id\\s*=\\s*'([a-zA-Z0-9\\-]+)'\\s*" +
+                    "(?:\\s+ORDER\\s+BY\\s+([^\\s;]+(?:\\s+(?:ASC|DESC))?(?:\\s*,\\s*[^\\s;]+(?:\\s+(?:ASC|DESC))?)*))?\\s*" +
+                    "(?:\\s+LIMIT\\s+(\\d+))?\\s*;?\\s*",
             Pattern.CASE_INSENSITIVE
     );
 
     private static final Pattern RECENT_ACTIVITY_PATTERN = Pattern.compile(
-            "SELECT .* FROM sbca_bronze\\.businesses WHERE \\(updated_at >= CURRENT_TIMESTAMP - INTERVAL .* DAY .*\\) .*;",
+            "SELECT\\s+([^\\s]+|\\*|[^\\s]+(\\s*,\\s*[^\\s]+)*)\\s+FROM sbca_bronze\\.businesses WHERE \\(updated_at >= CURRENT_TIMESTAMP - INTERVAL .* DAY .*\\) .*;",
             Pattern.CASE_INSENSITIVE | Pattern.DOTALL
     );
 
@@ -76,48 +215,47 @@ public class QueryDispatcher extends RichFlatMapFunction<String, QueryDispatcher
             QueryMatch match = matchQueryType(rawQuery);
 
             if (match == null) {
-                System.err.println("Unsupported or unsafe query: " + rawQuery);
+                LOG.info("Unsupported or unsafe query: {}", rawQuery);
                 return;
             }
 
             String type = match.getType();
             if ("tenant_lookup".equals(type)) {
+                LOG.info("tenant_lookup query type:  {}", type);
                 handleTenantLookup(match.getMatcher(), out);
             } else if ("recent_changes".equals(type)) {
+                LOG.info("recent_changes query type:  {}", type);
                 handleRecentBusinessActivity(out);
             } else {
                 System.err.println("No handler for query type: " + type);
             }
 
         } catch (Exception e) {
-            System.err.println("Query dispatch failed: " + e.getMessage());
+            LOG.info("Query dispatch failed: {}", e.getMessage());
             e.printStackTrace();
         }
     }
 
     private void handleTenantLookup(Matcher matcher, Collector<LabeledRow> out) {
-        String tenantId = matcher.group(1);
-        String safeQuery = String.format(
-                "SELECT * FROM sbca_bronze.businesses WHERE tenant_id = '%s'",
-                tenantId
-        );
+        LOG.info("HandleTenantLookup, tenant_id: {}", matcher.group(3));
         try {
-            executeQuery(safeQuery, out);
+            executeQuery(matcher.group(), out);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
     private void handleRecentBusinessActivity(Collector<LabeledRow> out) {
+        LOG.info("handleRecentBusinessActivity!");
         String query =
                 "SELECT id, name, updated_at, created_at, website, owner_id, voided_at, " +
-                "_airbyte_extracted_at, dms_timestamp, source, tenant_id " +
-                "FROM sbca_bronze.businesses " +
-                "WHERE (updated_at >= CURRENT_TIMESTAMP - INTERVAL '2' DAY " +
-                "OR (website IS NULL OR TRIM(website) = '') OR owner_id IS NULL) " +
-                "AND voided_at IS NULL " +
-                "ORDER BY updated_at DESC " +
-                "LIMIT 100";
+                        "_airbyte_extracted_at, dms_timestamp, source, tenant_id " +
+                        "FROM sbca_bronze.businesses " +
+                        "WHERE (updated_at >= CURRENT_TIMESTAMP - INTERVAL '2' DAY " +
+                        "OR (website IS NULL OR TRIM(website) = '') OR owner_id IS NULL) " +
+                        "AND voided_at IS NULL " +
+                        "ORDER BY updated_at DESC " +
+                        "LIMIT 100";
         try {
             executeQuery(query, out);
         } catch (Exception e) {
@@ -126,8 +264,11 @@ public class QueryDispatcher extends RichFlatMapFunction<String, QueryDispatcher
     }
 
     private void executeQuery(String query, Collector<LabeledRow> out) throws Exception {
+        LOG.info("ExecuteQuery: {}", query);
         Table result = executor.sqlQuery(query);
+        LOG.info("Query result: {}", result);
         String[] fieldNames = RowToJsonConverter.extractFieldNames(result);
+        Arrays.stream(fieldNames).forEach(name -> LOG.info("Query result fields names: {}", name));
 
         try (AutoCloseableIterator<Row> iterator = new AutoCloseableIterator<>(executor.collect(result))) {
             while (iterator.hasNext()) {

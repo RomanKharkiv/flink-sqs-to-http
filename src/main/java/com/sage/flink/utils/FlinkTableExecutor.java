@@ -9,11 +9,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.Serializable;
 
-public class FlinkTableExecutor implements TableExecutor {
+public class FlinkTableExecutor implements TableExecutor, Serializable {
+
+    private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(FlinkTableExecutor.class);
-
-    private final StreamTableEnvironment tEnv;
+    private transient StreamTableEnvironment tEnv;
 
     public FlinkTableExecutor(StreamTableEnvironment tEnv) {
         this.tEnv = tEnv;

@@ -5,6 +5,7 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -28,8 +29,10 @@ public class FlinkJob {
     public static void main(String[] args) throws Exception {
         LOG.info("Starting SQS source Flink job");
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        EnvironmentSettings settings = EnvironmentSettings.newInstance().inStreamingMode().build();
-        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, settings);
+        Configuration config = new Configuration();
+        env.getConfig().setGlobalJobParameters(config);
+
+
 
         Properties appConfigProperties;
         try {
@@ -44,8 +47,6 @@ public class FlinkJob {
 
         String sqsQueueUrl = appConfigProperties.getProperty("aws.sqs.queue.url");
         String awsRegion = appConfigProperties.getProperty("aws.region");
-//        String awsDataCatalog = appConfigProperties.getProperty("aws.data.catalog");
-//        String glueDatabase = appConfigProperties.getProperty("aws.glue.database");
         String endPointUrl = appConfigProperties.getProperty("api.endpoint.url");
 
         appConfigProperties.forEach((k, v) ->
@@ -69,25 +70,14 @@ public class FlinkJob {
                 TypeInformation.of(String.class)
         );
 
-        try (CloseableHttpClient httpClient = createDefault()) {
-            LOG.info("Created DataStream from SQS!");
-            sqsMessages
-//                    .flatMap(new QueryDispatcher())
-//                    .returns(TypeInformation.of(QueryDispatcher.LabeledRow.class))
-//                    .addSink(new ApiSinkFunction(httpClient, endPointUrl));
-                    .flatMap(new FlatMapFunction<String, QueryDispatcher.LabeledRow>() {
-                        @Override
-                        public void flatMap(String value, Collector<QueryDispatcher.LabeledRow> out) {
-                            out.collect(new QueryDispatcher.LabeledRow(new Row(1), new String[]{"test","TTTT"}));
-                        }
-                    })
-                    .addSink(new SinkFunction<QueryDispatcher.LabeledRow>() {
-                        @Override
-                        public void invoke(QueryDispatcher.LabeledRow value, Context context) {
-                            System.out.println("Got row: " + value);
-                        }
-                    });
-        }
+
+        LOG.info("Created DataStream from SQS!");
+        sqsMessages
+                .flatMap(new QueryDispatcher())
+                .returns(TypeInformation.of(QueryDispatcher.LabeledRow.class))
+                .addSink(new ApiSinkFunction(endPointUrl))
+                .name("HTTP-Response-Sink")
+                .setParallelism(2);
 
         env.execute("Flink Iceberg Query to external API");
     }
