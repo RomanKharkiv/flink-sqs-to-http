@@ -25,11 +25,6 @@
         </dependency>
         <dependency>
             <groupId>org.apache.iceberg</groupId>
-            <artifactId>iceberg-flink-runtime-1.19</artifactId>
-            <version>${iceberg.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.iceberg</groupId>
             <artifactId>iceberg-aws</artifactId>
             <version>${iceberg.version}</version>
         </dependency>
@@ -140,10 +135,6 @@
                                 <relocation>
                                     <pattern>org.apache.http</pattern>
                                     <shadedPattern>shaded.org.apache.http</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>org.apache.hadoop</pattern>
-                                    <shadedPattern>shaded.org.apache.hadoop</shadedPattern>
                                 </relocation>
                             </relocations>
                         </configuration>

@@ -3,11 +3,9 @@ package com.sage.flink;
 import com.amazonaws.services.kinesisanalytics.runtime.KinesisAnalyticsRuntime;
 import com.sage.flink.utils.FlinkTableExecutor;
 import com.sage.flink.utils.RowToJsonConverter;
-import com.sage.flink.utils.TableExecutor;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
@@ -15,12 +13,11 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
-import org.apache.iceberg.flink.FlinkCatalog;
-import org.apache.hadoop.conf.Configuration;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import java.io.IOException;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -70,7 +67,8 @@ public class QueryDispatcher extends RichFlatMapFunction<String, QueryDispatcher
 //
 //                // Use the catalog
 //                tEnv.executeSql("USE CATALOG " + dataCatalog);
-//                LOG.info("Using catalog: {}", dataCatalog);
+////                LOG.info("Using catalog: {}", dataCatalog);
+                ReadableConfig emptyConfig = new Configuration();
 
                 Map<String, String> conf = new HashMap<>();
                 conf.put("type", "iceberg");
@@ -84,7 +82,7 @@ public class QueryDispatcher extends RichFlatMapFunction<String, QueryDispatcher
                 Catalog flinkCatalog = FactoryUtil.createCatalog(
                         dataCatalog,
                         conf,
-                        new shaded.org.apache.hadoop.conf.Configuration(),
+                       null,
                         Thread.currentThread().getContextClassLoader()
                 );
                 LOG.info("Registering AWS Glue catalog using FactoryUtil");
