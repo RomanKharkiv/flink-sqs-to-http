@@ -35,6 +35,7 @@ public class QueryDispatcher extends RichFlatMapFunction<String, QueryDispatcher
     @Override
     public void open(Configuration parameters) throws Exception {
         LOG.info("QueryDispatcher open()!");
+        LOG.info("Classloader: {}", this.getClass().getClassLoader());
         try {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);

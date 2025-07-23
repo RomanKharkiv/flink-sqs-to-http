@@ -9,8 +9,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -18,6 +21,7 @@ import com.amazonaws.services.kinesisanalytics.runtime.KinesisAnalyticsRuntime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
@@ -29,6 +33,8 @@ public class FlinkJob {
     public static void main(String[] args) throws Exception {
         LOG.info("Starting SQS source Flink job");
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        EnvironmentSettings settings = EnvironmentSettings.newInstance().inStreamingMode().build();
+        TableEnvironment tEnv = TableEnvironment.create(settings);
         Configuration config = new Configuration();
         env.getConfig().setGlobalJobParameters(config);
 
@@ -52,6 +58,17 @@ public class FlinkJob {
         appConfigProperties.forEach((k, v) ->
                 LOG.info("Starting Job properties: {} - {}", k, v)
         );
+
+        Map<String, String> conf = new HashMap<>();
+        conf.put("type", "iceberg");
+        conf.put("catalog-name", "test_catalog");
+        conf.put("catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog");
+        conf.put("io-impl", "org.apache.iceberg.aws.s3.S3FileIO");
+        conf.put("warehouse", "s3://your-bucket/warehouse");
+        conf.put("aws.region", "eu-west-1");
+
+        Catalog catalog = FactoryUtil.createCatalog("test_catalog", conf, null, Thread.currentThread().getContextClassLoader());
+        tEnv.registerCatalog("test_catalog", catalog);
 
 
         CustomSqsSource<String> sqsSource = CustomSqsSource.<String>builder()
