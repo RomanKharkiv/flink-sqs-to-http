@@ -52,21 +52,21 @@ public class QueryDispatcher extends RichFlatMapFunction<String, QueryDispatcher
 
             // Register the AWS Glue catalog using FactoryUtil
             try {
-//                String createCatalogSQL =
-//                        "CREATE CATALOG " + dataCatalog + " WITH (" +
-//                                "'type' = 'iceberg', " +
-//                                "'catalog-impl' = 'org.apache.iceberg.aws.glue.GlueCatalog', " +
-//                                "'io-impl' = 'org.apache.iceberg.aws.s3.S3FileIO', " +
-//                                "'warehouse' = '" + warehousePath + "', " +
-//                                "'aws.region' = '" + region + "'" +
-//                                ")";
-//
-//                LOG.info("Create catalog SQL: {}", createCatalogSQL);
-//                tEnv.executeSql(createCatalogSQL);
-//                LOG.info("Successfully created catalog: {}", dataCatalog);
-//
-//                // Use the catalog
-//                tEnv.executeSql("USE CATALOG " + dataCatalog);
+                String createCatalogSQL =
+                        "CREATE CATALOG " + dataCatalog + " WITH (" +
+                                "'type' = 'iceberg', " +
+                                "'catalog-impl' = 'org.apache.iceberg.aws.glue.GlueCatalog', " +
+                                "'io-impl' = 'org.apache.iceberg.aws.s3.S3FileIO', " +
+                                "'warehouse' = '" + warehousePath + "', " +
+                                "'aws.region' = '" + region + "'" +
+                                ")";
+
+                LOG.info("Create catalog SQL: {}", createCatalogSQL);
+                tEnv.executeSql(createCatalogSQL);
+                LOG.info("Successfully created catalog: {}", dataCatalog);
+
+                // Use the catalog
+                tEnv.executeSql("USE CATALOG " + dataCatalog);
 ////                LOG.info("Using catalog: {}", dataCatalog);
                 ReadableConfig emptyConfig = new Configuration();
 
