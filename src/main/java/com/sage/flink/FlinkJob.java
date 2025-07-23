@@ -76,8 +76,7 @@ public class FlinkJob {
                 .flatMap(new QueryDispatcher())
                 .returns(TypeInformation.of(QueryDispatcher.LabeledRow.class))
                 .addSink(new ApiSinkFunction(endPointUrl))
-                .name("HTTP-Response-Sink")
-                .setParallelism(2);
+                .name("HTTP-Response-Sink");
 
         env.execute("Flink Iceberg Query to external API");
     }

@@ -67,33 +67,33 @@ public class QueryDispatcher extends RichFlatMapFunction<String, QueryDispatcher
 
                 // Use the catalog
                 tEnv.executeSql("USE CATALOG " + dataCatalog);
-////                LOG.info("Using catalog: {}", dataCatalog);
-                ReadableConfig emptyConfig = new Configuration();
-
-                Map<String, String> conf = new HashMap<>();
-                conf.put("type", "iceberg");
-                conf.put("catalog-name", dataCatalog);
-                conf.put("catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog");
-                conf.put("io-impl", "org.apache.iceberg.aws.s3.S3FileIO");
-                conf.put("warehouse", warehousePath); // base path
-                conf.put("aws.region", region);
-
-                // Create the catalog using FactoryUtil
-                Catalog flinkCatalog = FactoryUtil.createCatalog(
-                        dataCatalog,
-                        conf,
-                       null,
-                        Thread.currentThread().getContextClassLoader()
-                );
-                LOG.info("Registering AWS Glue catalog using FactoryUtil");
-
-                // Register the catalog with Flink
-                tEnv.registerCatalog(dataCatalog, flinkCatalog);
-                LOG.info("Successfully registered catalog: {}", dataCatalog);
-
-                // Use the registered catalog
-                tEnv.useCatalog(dataCatalog);
                 LOG.info("Using catalog: {}", dataCatalog);
+//                ReadableConfig emptyConfig = new Configuration();
+//
+//                Map<String, String> conf = new HashMap<>();
+//                conf.put("type", "iceberg");
+//                conf.put("catalog-name", dataCatalog);
+//                conf.put("catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog");
+//                conf.put("io-impl", "org.apache.iceberg.aws.s3.S3FileIO");
+//                conf.put("warehouse", warehousePath); // base path
+//                conf.put("aws.region", region);
+//
+//                // Create the catalog using FactoryUtil
+//                Catalog flinkCatalog = FactoryUtil.createCatalog(
+//                        dataCatalog,
+//                        conf,
+//                       null,
+//                        Thread.currentThread().getContextClassLoader()
+//                );
+//                LOG.info("Registering AWS Glue catalog using FactoryUtil");
+//
+//                // Register the catalog with Flink
+//                tEnv.registerCatalog(dataCatalog, flinkCatalog);
+//                LOG.info("Successfully registered catalog: {}", dataCatalog);
+//
+//                // Use the registered catalog
+//                tEnv.useCatalog(dataCatalog);
+//                LOG.info("Using catalog: {}", dataCatalog);
 
                 // List databases in the catalog
                 try {
