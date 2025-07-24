@@ -1,31 +1,19 @@
 package com.sage.flink;
 
-import com.sage.flink.utils.FlinkTableExecutor;
+import com.amazonaws.services.kinesisanalytics.runtime.KinesisAnalyticsRuntime;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.types.Row;
-import org.apache.flink.util.Collector;
-import org.apache.http.impl.client.CloseableHttpClient;
-import com.amazonaws.services.kinesisanalytics.runtime.KinesisAnalyticsRuntime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
-
-import static org.apache.http.impl.client.HttpClients.createDefault;
 
 public class FlinkJob {
     private static final Logger LOG = LoggerFactory.getLogger(FlinkJob.class);
