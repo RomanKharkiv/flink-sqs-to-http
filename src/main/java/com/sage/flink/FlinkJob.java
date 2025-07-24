@@ -59,16 +59,16 @@ public class FlinkJob {
                 LOG.info("Starting Job properties: {} - {}", k, v)
         );
 
-        Map<String, String> conf = new HashMap<>();
-        conf.put("type", "iceberg");
-        conf.put("catalog-name", "test_catalog");
-        conf.put("catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog");
-        conf.put("io-impl", "org.apache.iceberg.aws.s3.S3FileIO");
-        conf.put("warehouse", "s3://sbca-bronze");
-        conf.put("aws.region", "eu-west-1");
-
-        Catalog catalog = FactoryUtil.createCatalog("test_catalog", conf, null, Thread.currentThread().getContextClassLoader());
-        tEnv.registerCatalog("test_catalog", catalog);
+//        Map<String, String> conf = new HashMap<>();
+//        conf.put("type", "iceberg");
+//        conf.put("catalog-name", "test_catalog");
+//        conf.put("catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog");
+//        conf.put("io-impl", "org.apache.iceberg.aws.s3.S3FileIO");
+//        conf.put("warehouse", "s3://sbca-bronze");
+//        conf.put("aws.region", "eu-west-1");
+//
+//        Catalog catalog = FactoryUtil.createCatalog("test_catalog", conf, null, Thread.currentThread().getContextClassLoader());
+//        tEnv.registerCatalog("test_catalog", catalog);
 
 
         CustomSqsSource<String> sqsSource = CustomSqsSource.<String>builder()

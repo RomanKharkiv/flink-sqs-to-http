@@ -16,7 +16,7 @@ import org.apache.flink.util.Collector;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.catalog.CatalogDescriptor;
 import org.apache.flink.configuration.ReadableConfig;
 import java.io.IOException;
 import java.util.*;
@@ -53,48 +53,39 @@ public class QueryDispatcher extends RichFlatMapFunction<String, QueryDispatcher
 
             // Register the AWS Glue catalog using FactoryUtil
             try {
-                String createCatalogSQL =
-                        "CREATE CATALOG " + dataCatalog + " WITH (" +
-                                "'type' = 'iceberg', " +
-                                "'catalog-impl' = 'org.apache.iceberg.aws.glue.GlueCatalog', " +
-                                "'io-impl' = 'org.apache.iceberg.aws.s3.S3FileIO', " +
-                                "'warehouse' = '" + warehousePath + "', " +
-                                "'aws.region' = '" + region + "'" +
-                                ")";
-
-                LOG.info("Create catalog SQL: {}", createCatalogSQL);
-                tEnv.executeSql(createCatalogSQL);
-                LOG.info("Successfully created catalog: {}", dataCatalog);
-
-                // Use the catalog
-                tEnv.executeSql("USE CATALOG " + dataCatalog);
-                LOG.info("Using catalog: {}", dataCatalog);
-//                ReadableConfig emptyConfig = new Configuration();
+//                String createCatalogSQL =
+//                        "CREATE CATALOG " + dataCatalog + " WITH (" +
+//                                "'type' = 'iceberg', " +
+//                                "'catalog-impl' = 'org.apache.iceberg.aws.glue.GlueCatalog', " +
+//                                "'io-impl' = 'org.apache.iceberg.aws.s3.S3FileIO', " +
+//                                "'warehouse' = '" + warehousePath + "', " +
+//                                "'aws.region' = '" + region + "'" +
+//                                ")";
 //
-//                Map<String, String> conf = new HashMap<>();
-//                conf.put("type", "iceberg");
-//                conf.put("catalog-name", dataCatalog);
-//                conf.put("catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog");
-//                conf.put("io-impl", "org.apache.iceberg.aws.s3.S3FileIO");
-//                conf.put("warehouse", warehousePath); // base path
-//                conf.put("aws.region", region);
+//                LOG.info("Create catalog SQL: {}", createCatalogSQL);
+//                tEnv.executeSql(createCatalogSQL);
+//                LOG.info("Successfully created catalog: {}", dataCatalog);
 //
-//                // Create the catalog using FactoryUtil
-//                Catalog flinkCatalog = FactoryUtil.createCatalog(
-//                        dataCatalog,
-//                        conf,
-//                       null,
-//                        Thread.currentThread().getContextClassLoader()
-//                );
-//                LOG.info("Registering AWS Glue catalog using FactoryUtil");
-//
-//                // Register the catalog with Flink
-//                tEnv.registerCatalog(dataCatalog, flinkCatalog);
-//                LOG.info("Successfully registered catalog: {}", dataCatalog);
-//
-//                // Use the registered catalog
-//                tEnv.useCatalog(dataCatalog);
+//                // Use the catalog
+//                tEnv.executeSql("USE CATALOG " + dataCatalog);
 //                LOG.info("Using catalog: {}", dataCatalog);
+
+                Configuration conf = new Configuration();
+                conf.setString("type", "iceberg");
+                conf.setString("catalog-name", dataCatalog);
+                conf.setString("catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog");
+                conf.setString("io-impl", "org.apache.iceberg.aws.s3.S3FileIO");
+                conf.setString("warehouse", warehousePath); // base path
+                conf.setString("aws.region", region);
+                CatalogDescriptor descriptor = CatalogDescriptor.of(dataCatalog, conf);
+
+                LOG.info("Creating flink catalog using CatalogDescriptor");
+
+                tEnv.createCatalog(dataCatalog, descriptor);
+                LOG.info("Successfully registered catalog: {}", dataCatalog);
+
+                tEnv.useCatalog(dataCatalog);
+                LOG.info("Using catalog: {}", dataCatalog);
 
                 // List databases in the catalog
                 try {
