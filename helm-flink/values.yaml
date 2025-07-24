@@ -1,0 +1,17 @@
+image:
+  repository: your-docker-repo/flink-poc
+  tag: latest
+  pullPolicy: IfNotPresent
+
+flink:
+  jobClass: com.sage.flink.FlinkJob
+  parallelism: 1
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 1Gi
+
