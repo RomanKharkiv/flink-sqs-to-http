@@ -15,7 +15,19 @@
         <flink.version>1.20.0</flink.version>
         <java.version>11</java.version>
         <iceberg.version>1.9.0</iceberg.version>
+        <awssdk.version>2.31.48</awssdk.version>
     </properties>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${awssdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <dependency>
@@ -167,7 +179,11 @@
             <artifactId>flink-hadoop-fs</artifactId>
             <version>${flink.version}</version>
         </dependency>
-
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-s3-fs-hadoop</artifactId>
+            <version>${flink.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
@@ -194,7 +210,8 @@
                                 <filter>
                                     <artifact>*:*</artifact>
                                     <excludes>
-                                        <exclude>META-INF/versions/**</exclude>
+                                        <exclude>META-INF/versions/21/**</exclude>
+                                        <exclude>META-INF/versions/22/**</exclude>
                                         <exclude>META-INF/*.SF</exclude>
                                         <exclude>META-INF/*.DSA</exclude>
                                         <exclude>META-INF/*.RSA</exclude>
@@ -209,16 +226,8 @@
                             </transformers>
                             <relocations>
                                 <relocation>
-                                    <pattern>org.apache.http</pattern>
-                                    <shadedPattern>shade.org.apache.http</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>software.amazon.awssdk</pattern>
-                                    <shadedPattern>shade.software.amazon.awssdk</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>org.json</pattern>
-                                    <shadedPattern>shade.org.json</shadedPattern>
+                                    <pattern>org.apache.flink.runtime.util.HadoopUtils</pattern>
+                                    <shadedPattern>shadow.org.apache.flink.runtime.util.HadoopUtils</shadedPattern>
                                 </relocation>
                             </relocations>
                         </configuration>
