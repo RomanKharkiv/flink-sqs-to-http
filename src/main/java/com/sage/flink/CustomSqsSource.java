@@ -130,7 +130,6 @@ public class CustomSqsSource<OUT> implements Source<OUT, CustomSqsSource.SqsSpli
     private static class SqsSplitEnumerator implements SplitEnumerator<SqsSplit, SqsEnumeratorState> {
         private final SplitEnumeratorContext<SqsSplit> context;
         private final String queueUrl;
-        private boolean splitAssigned = false;
         private final String region;
         private final Map<Integer, List<SqsSplit>> pendingAssignments;
 
@@ -156,7 +155,14 @@ public class CustomSqsSource<OUT> implements Source<OUT, CustomSqsSource.SqsSpli
         @Override
         public void handleSplitRequest(int subtaskId, String requesterHostname) {
             // Create a split for the requesting subtask
+            if (!context.registeredReaders().containsKey(subtaskId)) {
+                LOG.warn("Subtask {} not registered in handleSplitRequest; skipping split assignment", subtaskId);
+                return;
+            }
+            LOG.info("Handling split request for subtask {}", subtaskId);
+
             CustomSqsSource.SqsSplit split = new CustomSqsSource.SqsSplit(queueUrl + "-" + subtaskId);
+            LOG.info("Assigning new split {} to subtask {}", split.splitId(), subtaskId);
 
             // Assign the split to the requesting subtask
             Map<Integer, List<CustomSqsSource.SqsSplit>> assignment = new HashMap<>();
@@ -176,6 +182,11 @@ public class CustomSqsSource<OUT> implements Source<OUT, CustomSqsSource.SqsSpli
         @Override
         public void addReader(int subtaskId) {
             // When a new reader is added, check if there are pending splits to assign
+            if (!context.registeredReaders().containsKey(subtaskId)) {
+                LOG.warn("Subtask {} not registered; skipping split assignment", subtaskId);
+                return;
+            }
+
             if (pendingAssignments.containsKey(subtaskId)) {
                 List<CustomSqsSource.SqsSplit> splits = pendingAssignments.remove(subtaskId);
                 if (splits != null && !splits.isEmpty()) {
@@ -198,7 +209,7 @@ public class CustomSqsSource<OUT> implements Source<OUT, CustomSqsSource.SqsSpli
 
         @Override
         public SqsEnumeratorState snapshotState(long checkpointId) throws Exception {
-            return new SqsEnumeratorState();
+            return new SqsEnumeratorState(queueUrl);
         }
 
         @Override
@@ -279,6 +290,12 @@ public class CustomSqsSource<OUT> implements Source<OUT, CustomSqsSource.SqsSpli
 
         @Override
         public InputStatus pollNext(ReaderOutput<OUT> output) throws Exception {
+            LOG.info("SQS SourceReader polling for messages on subtask {}", context.getIndexOfSubtask());
+            if (sqsClient == null) {
+                LOG.warn("SQS client is not initialized. Skipping poll.");
+                return InputStatus.NOTHING_AVAILABLE;
+            }
+
             if (!isRunning.get() || assignedSplits.isEmpty()) {
                 return InputStatus.NOTHING_AVAILABLE;
             }
@@ -287,7 +304,7 @@ public class CustomSqsSource<OUT> implements Source<OUT, CustomSqsSource.SqsSpli
             ReceiveMessageRequest receiveRequest = ReceiveMessageRequest.builder()
                     .queueUrl(queueUrl)
                     .maxNumberOfMessages(batchSize)
-                    .waitTimeSeconds(20) // Short polling to avoid blocking
+                    .waitTimeSeconds(20)
                     .build();
 
             ReceiveMessageResponse response = sqsClient.receiveMessage(receiveRequest);
@@ -301,24 +318,35 @@ public class CustomSqsSource<OUT> implements Source<OUT, CustomSqsSource.SqsSpli
 
             for (Message message : messages) {
                 try {
-                    LOG.info("Raw SQS message: {}", message.body());
-                    OUT element = deserializationSchema.deserialize(message.body().getBytes());
-                    LOG.info("Deserialized: {}", element);
-                    output.collect(element);
-
-                    DeleteMessageRequest deleteRequest = DeleteMessageRequest.builder()
-                            .queueUrl(queueUrl)
-                            .receiptHandle(message.receiptHandle())
-                            .build();
-                    sqsClient.deleteMessage(deleteRequest);
+                    processAndAck(message, output);
                 } catch (Exception e) {
-                    System.err.println("Error processing SQS message: " + e.getMessage());
+                    LOG.warn("First attempt failed for message: {}", message.messageId(), e);
+                    try {
+                        processAndAck(message, output);
+                    } catch (Exception ex) {
+                        LOG.error("Retry failed for message: {}", message.messageId(), ex);
+                    }
                 }
             }
 
-            return InputStatus.MORE_AVAILABLE;
+            return messages.size() < batchSize ? InputStatus.NOTHING_AVAILABLE : InputStatus.MORE_AVAILABLE;
         }
+
+        private void processAndAck(Message message, ReaderOutput<OUT> output) throws IOException {
+            LOG.info("Raw SQS message: {}", message.body());
+            OUT element = deserializationSchema.deserialize(message.body().getBytes());
+            output.collect(element);
+
+            DeleteMessageRequest deleteRequest = DeleteMessageRequest.builder()
+                    .queueUrl(queueUrl)
+                    .receiptHandle(message.receiptHandle())
+                    .build();
+            sqsClient.deleteMessage(deleteRequest);
+        }
+
     }
+
+
 
     private static class SqsSplitSerializer implements SimpleVersionedSerializer<SqsSplit> {
         @Override
