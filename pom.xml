@@ -223,21 +223,9 @@
                                     <exclude>log4j:*</exclude>
                                 </excludes>
                             </artifactSet>
-<!--                            <createDependencyReducedPom>false</createDependencyReducedPom>-->
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
                             <filters>
-<!--                                <filter>-->
-<!--                                    <artifact>*:*</artifact>-->
-<!--                                    <excludes>-->
-<!--                                        <exclude>META-INF/versions/21/**</exclude>-->
-<!--                                        <exclude>META-INF/versions/22/**</exclude>-->
-<!--                                        <exclude>META-INF/*.SF</exclude>-->
-<!--                                        <exclude>META-INF/*.DSA</exclude>-->
-<!--                                        <exclude>META-INF/*.RSA</exclude>-->
-<!--                                    </excludes>-->
-<!--                                </filter>-->
                                 <filter>
-                                    <!-- Do not copy the signatures in the META-INF folder.
-                                    Otherwise, this might cause SecurityExceptions when using the JAR. -->
                                     <artifact>*:*</artifact>
                                     <excludes>
                                         <exclude>META-INF/*.SF</exclude>
@@ -265,10 +253,6 @@
                                     <pattern>org.apache.flink.runtime.util.HadoopUtils</pattern>
                                     <shadedPattern>shadow.org.apache.flink.runtime.util.HadoopUtils</shadedPattern>
                                 </relocation>
-<!--                                <relocation>-->
-<!--                                    <pattern>org.apache.hadoop</pattern>-->
-<!--                                    <shadedPattern>shadow.org.apache.hadoop</shadedPattern>-->
-<!--                                </relocation>-->
                             </relocations>
                         </configuration>
                     </execution>
