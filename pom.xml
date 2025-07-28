@@ -6,7 +6,7 @@
 
     <groupId>com.sage</groupId>
     <artifactId>flink-poc</artifactId>
-    <version>1.23-flink-desc</version>
+    <version>1.24-flink-desc</version>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
@@ -269,10 +269,10 @@
                                 </transformer>
                             </transformers>
                             <relocations>
-                                <relocation>
-                                    <pattern>com.fasterxml.jackson</pattern>
-                                    <shadedPattern>shaded.com.fasterxml.jackson</shadedPattern>
-                                </relocation>
+<!--                                <relocation>-->
+<!--                                    <pattern>com.fasterxml.jackson</pattern>-->
+<!--                                    <shadedPattern>shaded.com.fasterxml.jackson</shadedPattern>-->
+<!--                                </relocation>-->
                                 <relocation>
                                     <pattern>org.apache.flink.runtime.util.HadoopUtils</pattern>
                                     <shadedPattern>shadow.org.apache.flink.runtime.util.HadoopUtils</shadedPattern>
