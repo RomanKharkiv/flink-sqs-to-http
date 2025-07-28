@@ -6,7 +6,7 @@
 
     <groupId>com.sage</groupId>
     <artifactId>flink-poc</artifactId>
-    <version>1.2-flink-desc</version>
+    <version>1.20-flink-desc</version>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
@@ -16,6 +16,8 @@
         <java.version>11</java.version>
         <iceberg.version>1.9.0</iceberg.version>
         <awssdk.version>2.31.48</awssdk.version>
+        <hadoop.version>3.3.6</hadoop.version>
+        <jackson.version>2.17.0</jackson.version>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -64,12 +66,12 @@
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-common</artifactId>
-            <version>3.3.6</version>
+            <version>${hadoop.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-auth</artifactId>
-            <version>3.3.6</version>
+            <version>${hadoop.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.iceberg</groupId>
@@ -189,11 +191,50 @@
             <artifactId>flink-s3-fs-hadoop</artifactId>
             <version>${flink.version}</version>
         </dependency>
+        <!-- Hadoop dependencies -->
+<!--        <dependency>-->
+<!--            <groupId>org.apache.hadoop</groupId>-->
+<!--            <artifactId>hadoop-common</artifactId>-->
+<!--            <version>${hadoop.version}</version>-->
+<!--            <exclusions>-->
+<!--                <exclusion>-->
+<!--                    <groupId>com.fasterxml.jackson.core</groupId>-->
+<!--                    <artifactId>*</artifactId>-->
+<!--                </exclusion>-->
+<!--            </exclusions>-->
+<!--        </dependency>-->
+
         <dependency>
             <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-client</artifactId>
-            <version>3.3.6</version>
+            <artifactId>hadoop-aws</artifactId>
+            <version>${hadoop.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.core</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
+
+        <!-- Jackson dependencies - ensure consistent versions -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
@@ -249,6 +290,10 @@
                                 </transformer>
                             </transformers>
                             <relocations>
+                                <relocation>
+                                    <pattern>com.fasterxml.jackson</pattern>
+                                    <shadedPattern>shaded.com.fasterxml.jackson</shadedPattern>
+                                </relocation>
                                 <relocation>
                                     <pattern>org.apache.flink.runtime.util.HadoopUtils</pattern>
                                     <shadedPattern>shadow.org.apache.flink.runtime.util.HadoopUtils</shadedPattern>

@@ -209,7 +209,7 @@ public class QueryDispatcher extends RichFlatMapFunction<String, QueryDispatcher
     }
 
     private static final Pattern TENANT_LOOKUP_PATTERN = Pattern.compile(
-            "SELECT\\s+([^\\s]+|\\*|[^\\s]+(\\s*,\\s*[^\\s]+)*)\\s+FROM\\s+AwsDataCatalog\\.sbca_bronze\\.businesses\\s+WHERE\\s+tenant_id\\s*=\\s*'([a-zA-Z0-9\\-]+)'\\s*" +
+            "SELECT\\s+([^\\s]+|\\*|[^\\s]+(\\s*,\\s*[^\\s]+)*)\\s+FROM\\s+sbca_bronze\\.businesses\\s+WHERE\\s+tenant_id\\s*=\\s*'([a-zA-Z0-9\\-]+)'\\s*" +
                     "(?:\\s+ORDER\\s+BY\\s+([^\\s;]+(?:\\s+(?:ASC|DESC))?(?:\\s*,\\s*[^\\s;]+(?:\\s+(?:ASC|DESC))?)*))?\\s*" +
                     "(?:\\s+LIMIT\\s+(\\d+))?\\s*;?\\s*",
             Pattern.CASE_INSENSITIVE
