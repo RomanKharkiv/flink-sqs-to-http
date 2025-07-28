@@ -268,10 +268,10 @@
                                 </transformer>
                             </transformers>
                             <relocations>
-                                <relocation>
-                                    <pattern>com.fasterxml.jackson</pattern>
-                                    <shadedPattern>shaded.com.fasterxml.jackson</shadedPattern>
-                                </relocation>
+<!--                                <relocation>-->
+<!--                                    <pattern>com.fasterxml.jackson</pattern>-->
+<!--                                    <shadedPattern>shaded.com.fasterxml.jackson</shadedPattern>-->
+<!--                                </relocation>-->
                                 <relocation>
                                     <pattern>org.apache.flink.runtime.util.HadoopUtils</pattern>
                                     <shadedPattern>shadow.org.apache.flink.runtime.util.HadoopUtils</shadedPattern>
