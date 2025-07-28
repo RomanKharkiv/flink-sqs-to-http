@@ -46,7 +46,7 @@ public class QueryDispatcher extends RichFlatMapFunction<String, QueryDispatcher
         }
         LOG.info("Classloader: {}", this.getClass().getClassLoader());
 
-        try {
+//        try {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
             executor = new FlinkTableExecutor(tEnv);
@@ -61,7 +61,7 @@ public class QueryDispatcher extends RichFlatMapFunction<String, QueryDispatcher
             LOG.info("Using region: {} and warehouse path: {}", region, warehousePath);
 
             // Register the AWS Glue catalog using FactoryUtil
-            try {
+//            try {
 //                String createCatalogSQL =
 //                        "CREATE CATALOG " + dataCatalog + " WITH (" +
 //                                "'type' = 'iceberg', " +
@@ -114,77 +114,77 @@ public class QueryDispatcher extends RichFlatMapFunction<String, QueryDispatcher
 
 
                 // List databases in the catalog
-                try {
-                    LOG.info("===== LISTING DATABASES IN CATALOG =====");
-                    TableResult databasesResult = tEnv.executeSql("SHOW DATABASES");
-                    Iterator<Row> dbIterator = databasesResult.collect();
-                    int dbCount = 0;
-
-                    while (dbIterator.hasNext()) {
-                        Row row = dbIterator.next();
-                        String dbName = row.getField(0).toString();
-                        LOG.info("Found database: {}", dbName);
-                        dbCount++;
-
-                        // If we find sbca_bronze, check its tables
-                        if (dbName.equalsIgnoreCase("sbca_bronze")) {
-                            try {
-                                LOG.info("===== LISTING TABLES IN SBCA_BRONZE =====");
-                                tEnv.useDatabase(dbName);
-                                TableResult tablesResult = tEnv.executeSql("SHOW TABLES");
-                                Iterator<Row> tableIterator = tablesResult.collect();
-                                int tableCount = 0;
-
-                                while (tableIterator.hasNext()) {
-                                    Row tableRow = tableIterator.next();
-                                    String tableName = tableRow.getField(0).toString();
-                                    LOG.info("Found table: {}", tableName);
-                                    tableCount++;
-
-                                    // If we find the businesses table, test it
-                                    if (tableName.equalsIgnoreCase("businesses")) {
-                                        try {
-                                            LOG.info("===== TESTING BUSINESSES TABLE =====");
-                                            TableResult countResult = tEnv.executeSql("SELECT COUNT(*) FROM businesses");
-                                            Iterator<Row> countIterator = countResult.collect();
-                                            if (countIterator.hasNext()) {
-                                                Row countRow = countIterator.next();
-                                                LOG.info("Count of records in businesses table: {}", countRow.getField(0));
-                                            }
-                                        } catch (Exception e) {
-                                            LOG.error("Error testing businesses table: {}", e.getMessage(), e);
-                                        }
-                                    }
-                                }
-
-                                if (tableCount == 0) {
-                                    LOG.warn("No tables found in sbca_bronze database!");
-                                } else {
-                                    LOG.info("Total tables found in sbca_bronze: {}", tableCount);
-                                }
-                            } catch (Exception e) {
-                                LOG.error("Error listing tables in sbca_bronze: {}", e.getMessage(), e);
-                            }
-                        }
-                    }
-
-                    if (dbCount == 0) {
-                        LOG.warn("No databases found in catalog!");
-                    } else {
-                        LOG.info("Total databases found: {}", dbCount);
-                    }
-                } catch (Exception e) {
-                    LOG.error("Error listing databases: {}", e.getMessage(), e);
-                }
-
-            } catch (Exception e) {
-                LOG.error("Error registering AWS Glue catalog: {}", e.getMessage(), e);
-            }
-
-        } catch (Exception e) {
-            LOG.error("Error in QueryDispatcher.open(): {}", e.getMessage(), e);
-            throw e;
-        }
+//                try {
+//                    LOG.info("===== LISTING DATABASES IN CATALOG =====");
+//                    TableResult databasesResult = tEnv.executeSql("SHOW DATABASES");
+//                    Iterator<Row> dbIterator = databasesResult.collect();
+//                    int dbCount = 0;
+//
+//                    while (dbIterator.hasNext()) {
+//                        Row row = dbIterator.next();
+//                        String dbName = row.getField(0).toString();
+//                        LOG.info("Found database: {}", dbName);
+//                        dbCount++;
+//
+//                        // If we find sbca_bronze, check its tables
+//                        if (dbName.equalsIgnoreCase("sbca_bronze")) {
+//                            try {
+//                                LOG.info("===== LISTING TABLES IN SBCA_BRONZE =====");
+//                                tEnv.useDatabase(dbName);
+//                                TableResult tablesResult = tEnv.executeSql("SHOW TABLES");
+//                                Iterator<Row> tableIterator = tablesResult.collect();
+//                                int tableCount = 0;
+//
+//                                while (tableIterator.hasNext()) {
+//                                    Row tableRow = tableIterator.next();
+//                                    String tableName = tableRow.getField(0).toString();
+//                                    LOG.info("Found table: {}", tableName);
+//                                    tableCount++;
+//
+//                                    // If we find the businesses table, test it
+//                                    if (tableName.equalsIgnoreCase("businesses")) {
+//                                        try {
+//                                            LOG.info("===== TESTING BUSINESSES TABLE =====");
+//                                            TableResult countResult = tEnv.executeSql("SELECT COUNT(*) FROM businesses");
+//                                            Iterator<Row> countIterator = countResult.collect();
+//                                            if (countIterator.hasNext()) {
+//                                                Row countRow = countIterator.next();
+//                                                LOG.info("Count of records in businesses table: {}", countRow.getField(0));
+//                                            }
+//                                        } catch (Exception e) {
+//                                            LOG.error("Error testing businesses table: {}", e.getMessage(), e);
+//                                        }
+//                                    }
+//                                }
+//
+//                                if (tableCount == 0) {
+//                                    LOG.warn("No tables found in sbca_bronze database!");
+//                                } else {
+//                                    LOG.info("Total tables found in sbca_bronze: {}", tableCount);
+//                                }
+//                            } catch (Exception e) {
+//                                LOG.error("Error listing tables in sbca_bronze: {}", e.getMessage(), e);
+//                            }
+//                        }
+//                    }
+//
+//                    if (dbCount == 0) {
+//                        LOG.warn("No databases found in catalog!");
+//                    } else {
+//                        LOG.info("Total databases found: {}", dbCount);
+//                    }
+//                } catch (Exception e) {
+//                    LOG.error("Error listing databases: {}", e.getMessage(), e);
+//                }
+//
+//            } catch (Exception e) {
+//                LOG.error("Error registering AWS Glue catalog: {}", e.getMessage(), e);
+//            }
+//
+//        } catch (Exception e) {
+//            LOG.error("Error in QueryDispatcher.open(): {}", e.getMessage(), e);
+//            throw e;
+//        }
 
         super.open(parameters);
     }
