@@ -320,32 +320,24 @@ public class CustomSqsSource<OUT> implements Source<OUT, CustomSqsSource.SqsSpli
 
             for (Message message : messages) {
                 try {
-                    processAndAck(message, output);
+                    LOG.info("Raw SQS message: {}", message.body());
+                    OUT element = deserializationSchema.deserialize(message.body().getBytes());
+                    LOG.info("Message deserialized successfully!");
+                    output.collect(element);
+
+                    DeleteMessageRequest deleteRequest = DeleteMessageRequest.builder()
+                            .queueUrl(queueUrl)
+                            .receiptHandle(message.receiptHandle())
+                            .build();
+
+                    sqsClient.deleteMessage(deleteRequest);
                 } catch (Exception e) {
-                    LOG.warn("First attempt failed for message: {}", message.messageId(), e);
-                    try {
-                        processAndAck(message, output);
-                    } catch (Exception ex) {
-                        LOG.error("Retry failed for message: {}", message.messageId(), ex);
-                    }
+                    LOG.warn("Failed to process SQS message {}", message.messageId(), e);
                 }
             }
 
             return messages.size() < batchSize ? InputStatus.NOTHING_AVAILABLE : InputStatus.MORE_AVAILABLE;
         }
-
-        private void processAndAck(Message message, ReaderOutput<OUT> output) throws IOException {
-            LOG.info("Raw SQS message: {}", message.body());
-            OUT element = deserializationSchema.deserialize(message.body().getBytes());
-            output.collect(element);
-
-            DeleteMessageRequest deleteRequest = DeleteMessageRequest.builder()
-                    .queueUrl(queueUrl)
-                    .receiptHandle(message.receiptHandle())
-                    .build();
-            sqsClient.deleteMessage(deleteRequest);
-        }
-
     }
 
 
