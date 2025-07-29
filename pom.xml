@@ -42,7 +42,6 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>glue</artifactId>
-
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
@@ -103,6 +102,11 @@
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-kinesisanalytics-runtime</artifactId>
             <version>1.2.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.avro</groupId>
+            <artifactId>avro</artifactId>
+            <version>1.11.1</version>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
