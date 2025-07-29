@@ -10,6 +10,7 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
@@ -249,6 +250,7 @@ public class CustomSqsSource<OUT> implements Source<OUT, CustomSqsSource.SqsSpli
         @Override
         public void start() {
             this.sqsClient = SqsClient.builder()
+                    .httpClientBuilder(ApacheHttpClient.builder())
                     .region(Region.of(region))
                     .build();
         }
