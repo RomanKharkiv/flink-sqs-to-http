@@ -7,9 +7,7 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.table.catalog.CatalogDescriptor;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 import org.json.JSONObject;
@@ -18,7 +16,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
@@ -47,54 +44,53 @@ public class QueryDispatcher extends RichFlatMapFunction<String, QueryDispatcher
         LOG.info("Classloader: {}", this.getClass().getClassLoader());
 
 //        try {
-            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
-            executor = new FlinkTableExecutor(tEnv);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+        executor = new FlinkTableExecutor(tEnv);
 
-            Map<String, Properties> applicationProperties = KinesisAnalyticsRuntime.getApplicationProperties();
-            Properties flinkProperties = applicationProperties.getOrDefault("FlinkApplicationProperties", new Properties());
+        Map<String, Properties> applicationProperties = KinesisAnalyticsRuntime.getApplicationProperties();
+        Properties flinkProperties = applicationProperties.getOrDefault("FlinkApplicationProperties", new Properties());
 
-            String region = flinkProperties.getProperty("aws.region", "eu-west-1");
-            String warehousePath = flinkProperties.getProperty("warehouse.path", "s3://sbca-bronze");
-            String dataCatalog = flinkProperties.getProperty("data.catalog", "iceberg_catalog");
+        String region = flinkProperties.getProperty("aws.region", "eu-west-1");
+        String warehousePath = flinkProperties.getProperty("warehouse.path", "s3://sbca-bronze");
+        String dataCatalog = flinkProperties.getProperty("data.catalog", "iceberg_catalog");
 
-            LOG.info("Using region: {} and warehouse path: {}", region, warehousePath);
+        LOG.info("Using region: {} and warehouse path: {}", region, warehousePath);
 
-            // Register the AWS Glue catalog using FactoryUtil
-//            try {
-//                String createCatalogSQL =
-//                        "CREATE CATALOG " + dataCatalog + " WITH (" +
-//                                "'type' = 'iceberg', " +
-//                                "'catalog-impl' = 'org.apache.iceberg.aws.glue.GlueCatalog', " +
-//                                "'io-impl' = 'org.apache.iceberg.aws.s3.S3FileIO', " +
-//                                "'warehouse' = '" + warehousePath + "', " +
-//                                "'aws.region' = '" + region + "'" +
-//                                ")";
+
+        String createCatalogSQL =
+                "CREATE CATALOG " + dataCatalog + " WITH (" +
+                "'type' = 'iceberg', " +
+                "'catalog-impl' = 'org.apache.iceberg.aws.glue.GlueCatalog', " +
+                "'io-impl' = 'org.apache.iceberg.aws.s3.S3FileIO', " +
+                "'warehouse' = '" + warehousePath + "', " +
+                "'aws.region' = '" + region + "'" +
+                ")";
+
+        LOG.info("Create catalog SQL: {}", createCatalogSQL);
+        tEnv.executeSql(createCatalogSQL);
+        LOG.info("Successfully created catalog: {}", dataCatalog);
+
+        // Use the catalog
+        tEnv.executeSql("USE CATALOG " + dataCatalog);
+        LOG.info("Using catalog: {}", dataCatalog);
+
+//                Configuration conf = new Configuration();
+//                conf.setString("type", "iceberg");
+//                conf.setString("catalog-name", dataCatalog);
+//                conf.setString("catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog");
+//                conf.setString("io-impl", "org.apache.iceberg.aws.s3.S3FileIO");
+//                conf.setString("warehouse", warehousePath); // base path
+//                conf.setString("aws.region", region);
+//                CatalogDescriptor descriptor = CatalogDescriptor.of(dataCatalog, conf);
 //
-//                LOG.info("Create catalog SQL: {}", createCatalogSQL);
-//                tEnv.executeSql(createCatalogSQL);
-//                LOG.info("Successfully created catalog: {}", dataCatalog);
+//                LOG.info("Creating flink catalog using CatalogDescriptor");
 //
-//                // Use the catalog
-//                tEnv.executeSql("USE CATALOG " + dataCatalog);
+//                tEnv.createCatalog(dataCatalog, descriptor);
+//                LOG.info("Successfully registered catalog: {}", dataCatalog);
+//
+//                tEnv.useCatalog(dataCatalog);
 //                LOG.info("Using catalog: {}", dataCatalog);
-
-                Configuration conf = new Configuration();
-                conf.setString("type", "iceberg");
-                conf.setString("catalog-name", dataCatalog);
-                conf.setString("catalog-impl", "org.apache.iceberg.aws.glue.GlueCatalog");
-                conf.setString("io-impl", "org.apache.iceberg.aws.s3.S3FileIO");
-                conf.setString("warehouse", warehousePath); // base path
-                conf.setString("aws.region", region);
-                CatalogDescriptor descriptor = CatalogDescriptor.of(dataCatalog, conf);
-
-                LOG.info("Creating flink catalog using CatalogDescriptor");
-
-                tEnv.createCatalog(dataCatalog, descriptor);
-                LOG.info("Successfully registered catalog: {}", dataCatalog);
-
-                tEnv.useCatalog(dataCatalog);
-                LOG.info("Using catalog: {}", dataCatalog);
 
 
 //                tEnv.executeSql(String.format(
@@ -113,7 +109,7 @@ public class QueryDispatcher extends RichFlatMapFunction<String, QueryDispatcher
 //                tEnv.useCatalog(dataCatalog);
 
 
-                // List databases in the catalog
+        // List databases in the catalog
 //                try {
 //                    LOG.info("===== LISTING DATABASES IN CATALOG =====");
 //                    TableResult databasesResult = tEnv.executeSql("SHOW DATABASES");
@@ -210,8 +206,8 @@ public class QueryDispatcher extends RichFlatMapFunction<String, QueryDispatcher
 
     private static final Pattern TENANT_LOOKUP_PATTERN = Pattern.compile(
             "SELECT\\s+([^\\s]+|\\*|[^\\s]+(\\s*,\\s*[^\\s]+)*)\\s+FROM\\s+sbca_bronze\\.businesses\\s+WHERE\\s+tenant_id\\s*=\\s*'([a-zA-Z0-9\\-]+)'\\s*" +
-                    "(?:\\s+ORDER\\s+BY\\s+([^\\s;]+(?:\\s+(?:ASC|DESC))?(?:\\s*,\\s*[^\\s;]+(?:\\s+(?:ASC|DESC))?)*))?\\s*" +
-                    "(?:\\s+LIMIT\\s+(\\d+))?\\s*;?\\s*",
+            "(?:\\s+ORDER\\s+BY\\s+([^\\s;]+(?:\\s+(?:ASC|DESC))?(?:\\s*,\\s*[^\\s;]+(?:\\s+(?:ASC|DESC))?)*))?\\s*" +
+            "(?:\\s+LIMIT\\s+(\\d+))?\\s*;?\\s*",
             Pattern.CASE_INSENSITIVE
     );
 
@@ -265,13 +261,13 @@ public class QueryDispatcher extends RichFlatMapFunction<String, QueryDispatcher
         LOG.info("handleRecentBusinessActivity!");
         String query =
                 "SELECT id, name, updated_at, created_at, website, owner_id, voided_at, " +
-                        "_airbyte_extracted_at, dms_timestamp, source, tenant_id " +
-                        "FROM sbca_bronze.businesses " +
-                        "WHERE (updated_at >= CURRENT_TIMESTAMP - INTERVAL '2' DAY " +
-                        "OR (website IS NULL OR TRIM(website) = '') OR owner_id IS NULL) " +
-                        "AND voided_at IS NULL " +
-                        "ORDER BY updated_at DESC " +
-                        "LIMIT 100";
+                "_airbyte_extracted_at, dms_timestamp, source, tenant_id " +
+                "FROM sbca_bronze.businesses " +
+                "WHERE (updated_at >= CURRENT_TIMESTAMP - INTERVAL '2' DAY " +
+                "OR (website IS NULL OR TRIM(website) = '') OR owner_id IS NULL) " +
+                "AND voided_at IS NULL " +
+                "ORDER BY updated_at DESC " +
+                "LIMIT 100";
         try {
             executeQuery(query, out);
         } catch (Exception e) {
