@@ -23,6 +23,9 @@ public class TenantLookupQuery extends RichMapFunction<String, QueryExecutor.Lab
 
         Table result = tEnv.sqlQuery(query);
         String[] fields = RowToJsonConverter.extractFieldNames(result);
-        return tEnv.toDataStream(result).map(row -> new QueryExecutor.LabeledRow(row, fields)).executeAndCollect().next();
+        return tEnv.toDataStream(result)
+//                map(row -> new QueryExecutor.LabeledRow(row, fields))
+                .map(new RowWithFieldNamesMapper(fields))
+                .executeAndCollect().next();
     }
 }
