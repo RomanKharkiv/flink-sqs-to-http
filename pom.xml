@@ -6,7 +6,7 @@
 
     <groupId>com.sage</groupId>
     <artifactId>flink-poc</artifactId>
-    <version>1.5-flink-1.18.0</version>
+    <version>1.6-flink-1.18.0</version>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
@@ -51,10 +51,10 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>netty-nio-client</artifactId>
         </dependency>
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>apache-client</artifactId>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>software.amazon.awssdk</groupId>-->
+<!--            <artifactId>apache-client</artifactId>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>url-connection-client</artifactId>
@@ -76,11 +76,6 @@
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-auth</artifactId>
             <version>${hadoop.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.iceberg</groupId>
-            <artifactId>iceberg-aws</artifactId>
-            <version>${iceberg.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
@@ -141,6 +136,11 @@
         <dependency>
             <groupId>org.apache.iceberg</groupId>
             <artifactId>iceberg-aws-bundle</artifactId>
+            <version>${iceberg.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.iceberg</groupId>
+            <artifactId>iceberg-aws</artifactId>
             <version>${iceberg.version}</version>
         </dependency>
         <dependency>

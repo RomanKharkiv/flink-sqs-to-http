@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-public class ApiSinkFunction extends RichSinkFunction<QueryDispatcher.LabeledRow> {
+public class ApiSinkFunction extends RichSinkFunction<QueryExecutor.LabeledRow> {
     private static final Logger LOG = LoggerFactory.getLogger(ApiSinkFunction.class);
 
     private transient CloseableHttpClient httpClient;
@@ -59,7 +59,7 @@ public class ApiSinkFunction extends RichSinkFunction<QueryDispatcher.LabeledRow
     }
 
     @Override
-    public void invoke(QueryDispatcher.LabeledRow labeled, Context context) throws Exception {
+    public void invoke(QueryExecutor.LabeledRow labeled, Context context) throws Exception {
         LOG.info("HTTP client invoke with labeled: {}", labeled);
         JSONObject json = RowToJsonConverter.convert(labeled.getRow(), labeled.getFieldNames());
         LOG.info("HTTP client invoke with json: {}", json);
