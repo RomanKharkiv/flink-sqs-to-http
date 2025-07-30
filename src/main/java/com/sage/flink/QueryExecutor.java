@@ -9,6 +9,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -79,7 +80,13 @@ public class QueryExecutor extends RichFlatMapFunction<String, QueryExecutor.Lab
             Table table = executor.sqlQuery(rawQuery);
             String[] fieldNames = RowToJsonConverter.extractFieldNames(table);
 
-            executor.streamQuery(table).map(row -> new LabeledRow(row, fieldNames));
+            try (CloseableIterator<Row> iterator = executor.collectQuery(table)) {
+                while (iterator.hasNext()) {
+                    Row row = iterator.next();
+                    LabeledRow labeledRow = new LabeledRow(row, fieldNames);
+                    out.collect(labeledRow);
+                }
+            }
         } catch (Exception e) {
             LOG.error("Failed to execute query: {}", e.getMessage(), e);
         }
@@ -92,9 +99,10 @@ public class QueryExecutor extends RichFlatMapFunction<String, QueryExecutor.Lab
     }
 
     public static class LabeledRow {
-        private final Row row;
-        private final String[] fieldNames;
+        private Row row;
+        private String[] fieldNames;
 
+        public LabeledRow (){}
         public LabeledRow(Row row, String[] fieldNames) {
             this.row = row;
             this.fieldNames = fieldNames;
@@ -106,6 +114,13 @@ public class QueryExecutor extends RichFlatMapFunction<String, QueryExecutor.Lab
 
         public String[] getFieldNames() {
             return fieldNames;
+        }
+
+        public void setRow(Row row) {
+            this.row = row;
+        }
+        public void setFieldNames(String[] fieldNames) {
+            this.fieldNames = fieldNames;
         }
     }
 }

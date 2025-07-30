@@ -6,7 +6,7 @@
 
     <groupId>com.sage</groupId>
     <artifactId>flink-poc</artifactId>
-    <version>1.10-flink-1.18.0</version>
+    <version>1.13-flink-1.18.0</version>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
