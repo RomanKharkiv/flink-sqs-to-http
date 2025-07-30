@@ -19,7 +19,6 @@ public class FlinkJob {
     public static void main(String[] args) throws Exception {
         LOG.info("Starting SQS source Flink job");
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
         Properties appConfigProperties;
         Map<String, Properties> applicationProperties = KinesisAnalyticsRuntime.getApplicationProperties();
         appConfigProperties = applicationProperties.get("dev");
@@ -47,30 +46,29 @@ public class FlinkJob {
 
 
         LOG.info("Created DataStream from SQS!");
-//        DataStream<QueryExecutor.LabeledRow> queryResults = sqsMessages
-//                .flatMap(new QueryExecutor())
-//                .name("Iceberg query Executor")
-//                .returns(TypeInformation.of(QueryExecutor.LabeledRow.class));
+        DataStream<QueryExecutor.LabeledRow> queryResults = sqsMessages
+                .flatMap(new QueryExecutor())
+                .name("Iceberg query Executor")
+                .returns(TypeInformation.of(QueryExecutor.LabeledRow.class));
 //
-//        queryResults
-//                .addSink(new ApiSinkFunction(endPointUrl))
-//                .name("HTTP Sink")
-//                .setParallelism(2);
+        queryResults
+                .addSink(new ApiSinkFunction(endPointUrl))
+                .name("HTTP Sink");
 
-        DataStream<QueryExecutor.LabeledRow> tenantStream = sqsMessages
-                .filter(json -> json.contains("\"queryType\":\"tenant_lookup\""))
-                .map(new TenantLookupQuery(tEnv))
-                .returns(TypeInformation.of(QueryExecutor.LabeledRow.class))
-                .name("Tenant Lookup");
+//        DataStream<QueryExecutor.LabeledRow> tenantStream = sqsMessages
+//                .filter(json -> json.contains("\"queryType\":\"tenant_lookup\""))
+//                .map(new TenantLookupQuery(tEnv))
+//                .returns(TypeInformation.of(QueryExecutor.LabeledRow.class))
+//                .name("Tenant Lookup");
 
 //        DataStream<LabeledRow> recentStream = rawMessages
 //                .filter(json -> json.contains("\"queryType\":\"recent_activity\""))
 //                .map(new RecentActivityQuery(tEnv))
 //                .name("Recent Activity");
 
-        tenantStream
-                .addSink(new ApiSinkFunction(endPointUrl))
-                .name("HTTP-Sink");
+//        tenantStream
+//                .addSink(new ApiSinkFunction(endPointUrl))
+//                .name("HTTP-Sink");
 
 
         env.execute("Flink Iceberg Query to external API");
