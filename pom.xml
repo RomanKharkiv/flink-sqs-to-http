@@ -6,7 +6,7 @@
 
     <groupId>com.sage</groupId>
     <artifactId>flink-poc</artifactId>
-    <version>1.13-flink-1.18.0</version>
+    <version>1.17-flink-1.18.0</version>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
@@ -225,6 +225,12 @@
                             </artifactSet>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <filters>
+                                <filter>
+                                    <artifact>org.apache.iceberg:iceberg-flink-runtime-1.18</artifact>
+                                    <includes>
+                                        <include>org/apache/iceberg/flink/**</include>
+                                    </includes>
+                                </filter>
                                 <filter>
                                     <artifact>*:*</artifact>
                                     <excludes>

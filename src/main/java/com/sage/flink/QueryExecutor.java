@@ -80,6 +80,7 @@ public class QueryExecutor extends RichFlatMapFunction<String, QueryExecutor.Lab
             Table table = executor.sqlQuery(rawQuery);
             String[] fieldNames = RowToJsonConverter.extractFieldNames(table);
 
+
             try (CloseableIterator<Row> iterator = executor.collectQuery(table)) {
                 while (iterator.hasNext()) {
                     Row row = iterator.next();
