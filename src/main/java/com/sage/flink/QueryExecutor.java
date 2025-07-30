@@ -19,10 +19,9 @@ import java.util.Properties;
 import java.util.regex.Pattern;
 
 public class QueryExecutor extends RichFlatMapFunction<String, QueryExecutor.LabeledRow> {
-
+    private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(QueryExecutor.class);
 
-    private transient StreamTableEnvironment tEnv;
     private transient FlinkTableExecutor executor;
 
     private static final Pattern TENANT_LOOKUP_PATTERN = Pattern.compile(
@@ -41,7 +40,7 @@ public class QueryExecutor extends RichFlatMapFunction<String, QueryExecutor.Lab
     public void open(Configuration parameters) throws Exception {
         LOG.info("Initializing QueryExecutor");
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        tEnv = StreamTableEnvironment.create(env);
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
         executor = new FlinkTableExecutor(tEnv);
 
         Map<String, Properties> applicationProperties = KinesisAnalyticsRuntime.getApplicationProperties();
@@ -80,8 +79,7 @@ public class QueryExecutor extends RichFlatMapFunction<String, QueryExecutor.Lab
             Table table = executor.sqlQuery(rawQuery);
             String[] fieldNames = RowToJsonConverter.extractFieldNames(table);
 
-//            DataStream<Row> stream = tEnv.toDataStream(table);
-            tEnv.toDataStream(table).map(row -> new LabeledRow(row, fieldNames));
+            executor.streamQuery(table).map(row -> new LabeledRow(row, fieldNames));
         } catch (Exception e) {
             LOG.error("Failed to execute query: {}", e.getMessage(), e);
         }

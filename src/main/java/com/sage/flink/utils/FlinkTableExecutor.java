@@ -21,9 +21,8 @@ public class FlinkTableExecutor {
         return tEnv.sqlQuery(sql);
     }
 
-    public DataStream<Row> streamQuery(String sql) {
-        LOG.info("Executing streaming SQL query: {}", sql);
-        Table result = sqlQuery(sql);
+    public DataStream<Row> streamQuery(Table result) {
+        LOG.info("Executing streaming SQL query!");
         return tEnv.toDataStream(result);
     }
 }
