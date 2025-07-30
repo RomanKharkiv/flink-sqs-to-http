@@ -1,11 +1,19 @@
 package com.sage.flink;
 
 import com.amazonaws.services.kinesisanalytics.runtime.KinesisAnalyticsRuntime;
+import com.sage.flink.utils.FlinkTableExecutor;
+import com.sage.flink.utils.RowToJsonConverter;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,6 +26,7 @@ public class FlinkJob {
     public static void main(String[] args) throws Exception {
         LOG.info("Starting SQS source Flink job");
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
         Properties appConfigProperties;
         Map<String, Properties> applicationProperties = KinesisAnalyticsRuntime.getApplicationProperties();
         appConfigProperties = applicationProperties.get("dev");
@@ -45,14 +54,24 @@ public class FlinkJob {
 
 
         LOG.info("Created DataStream from SQS!");
-        DataStream<QueryExecutor.LabeledRow> queryResults = sqsMessages
-                .flatMap(new QueryExecutor())
-                .name("Iceberg query Executor")
-                .returns(TypeInformation.of(QueryExecutor.LabeledRow.class));
-//
-        queryResults
-                .addSink(new ApiSinkFunction(endPointUrl))
-                .name("HTTP Sink");
+        FlinkTableExecutor executor = new FlinkTableExecutor(tEnv);
+        DataStream<Tuple2<String, Table>> parsed = sqsMessages.map(new QueryParser(executor)); // parse query
+        parsed.flatMap(new RichFlatMapFunction<Tuple2<String, Table>, QueryExecutor.LabeledRow>() {
+            @Override
+            public void flatMap(Tuple2<String, Table> in, Collector<QueryExecutor.LabeledRow> out) {
+                String[] fieldNames = RowToJsonConverter.extractFieldNames(in.f1);
+                DataStream<Row> rows = tEnv.toDataStream(in.f1);  // no .execute()!
+                rows.map(r -> new QueryExecutor.LabeledRow(r, fieldNames)).addSink(new ApiSinkFunction(endPointUrl));  // or send somewhere else
+            }
+        });
+//        DataStream<QueryExecutor.LabeledRow> queryResults = sqsMessages
+//                .flatMap(new QueryExecutor())
+//                .name("Iceberg query Executor")
+//                .returns(TypeInformation.of(QueryExecutor.LabeledRow.class));
+////
+//        queryResults
+//                .addSink(new ApiSinkFunction(endPointUrl))
+//                .name("HTTP Sink");
 
 //        DataStream<QueryExecutor.LabeledRow> tenantStream = sqsMessages
 //                .filter(json -> json.contains("\"queryType\":\"tenant_lookup\""))

@@ -217,14 +217,7 @@
                                     <exclude>com.google.code.findbugs:jsr305</exclude>
                                     <exclude>org.slf4j:*</exclude>
                                     <exclude>log4j:*</exclude>
-<!--                                    <exclude>com.fasterxml.jackson.core:*</exclude>-->
-<!--                                    <exclude>com.fasterxml.jackson.databind:*</exclude>-->
-<!--                                    <exclude>com.fasterxml.jackson.annotation:*</exclude>-->
-<!--                                    <exclude>com.fasterxml.jackson.dataformat:*</exclude>-->
                                 </excludes>
-                                <includes>
-                                    <include>org.apache.iceberg:iceberg-flink-runtime-1.18</include>
-                                </includes>
                             </artifactSet>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <filters>
