@@ -9,7 +9,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -24,6 +23,7 @@ public class QueryExecutor extends RichFlatMapFunction<String, QueryExecutor.Lab
     private static final Logger LOG = LoggerFactory.getLogger(QueryExecutor.class);
 
     private transient FlinkTableExecutor executor;
+    private String endPointUrl;
 
     private static final Pattern TENANT_LOOKUP_PATTERN = Pattern.compile(
             "SELECT\\s+([^\\s]+|\\*|[^\\s]+(\\s*,\\s*[^\\s]+)*)\\s+FROM\\s+sbca_bronze\\.businesses\\s+WHERE\\s+tenant_id\\s*=\\s*'([a-zA-Z0-9\\-]+)'\\s*" +
@@ -50,6 +50,7 @@ public class QueryExecutor extends RichFlatMapFunction<String, QueryExecutor.Lab
         String region = flinkProperties.getProperty("aws.region", "eu-west-1");
         String warehousePath = flinkProperties.getProperty("warehouse.path", "s3://sbca-bronze");
         String dataCatalog = flinkProperties.getProperty("data.catalog", "iceberg_catalog");
+        endPointUrl = flinkProperties.getProperty("api.endpoint.url");
 
         LOG.info("Using Glue catalog at {} in {}", warehousePath, region);
 
@@ -67,6 +68,7 @@ public class QueryExecutor extends RichFlatMapFunction<String, QueryExecutor.Lab
 
     @Override
     public void flatMap(String message, Collector<LabeledRow> out) {
+        LOG.info("Inside FlatMap!!!");
         try {
             JSONObject json = new JSONObject(message);
             String rawQuery = json.getString("query").trim();
@@ -80,14 +82,20 @@ public class QueryExecutor extends RichFlatMapFunction<String, QueryExecutor.Lab
             Table table = executor.sqlQuery(rawQuery);
             String[] fieldNames = RowToJsonConverter.extractFieldNames(table);
 
+            executor.streamQuery(table)
+                    .map(row -> new LabeledRow(row, fieldNames))
+                    .returns(LabeledRow.class)
+                    .addSink(new ApiSinkFunction(endPointUrl));
 
-            try (CloseableIterator<Row> iterator = executor.collectQuery(table)) {
-                while (iterator.hasNext()) {
-                    Row row = iterator.next();
-                    LabeledRow labeledRow = new LabeledRow(row, fieldNames);
-                    out.collect(labeledRow);
-                }
-            }
+
+
+//            try (CloseableIterator<Row> iterator = executor.collectQuery(table)) {
+//                while (iterator.hasNext()) {
+//                    Row row = iterator.next();
+//                    LabeledRow labeledRow = new LabeledRow(row, fieldNames);
+//                    out.collect(labeledRow);
+//                }
+//            }
         } catch (Exception e) {
             LOG.error("Failed to execute query: {}", e.getMessage(), e);
         }
