@@ -222,15 +222,12 @@
 <!--                                    <exclude>com.fasterxml.jackson.annotation:*</exclude>-->
 <!--                                    <exclude>com.fasterxml.jackson.dataformat:*</exclude>-->
                                 </excludes>
+                                <includes>
+                                    <include>org.apache.iceberg:iceberg-flink-runtime-1.18</include>
+                                </includes>
                             </artifactSet>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <filters>
-                                <filter>
-                                    <artifact>org.apache.iceberg:iceberg-flink-runtime-1.18</artifact>
-                                    <includes>
-                                        <include>org/apache/iceberg/flink/**</include>
-                                    </includes>
-                                </filter>
                                 <filter>
                                     <artifact>*:*</artifact>
                                     <excludes>
