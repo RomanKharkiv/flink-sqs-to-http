@@ -50,7 +50,7 @@ public class FlinkJob {
                 .flatMap(new QueryExecutor())
                 .name("Iceberg query Executor")
                 .returns(TypeInformation.of(QueryExecutor.LabeledRow.class));
-//
+
         queryResults
                 .addSink(new ApiSinkFunction(endPointUrl))
                 .name("HTTP Sink");

@@ -9,6 +9,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -46,11 +47,12 @@ public class QueryExecutor extends RichFlatMapFunction<String, QueryExecutor.Lab
 
         Map<String, Properties> applicationProperties = KinesisAnalyticsRuntime.getApplicationProperties();
         Properties flinkProperties = applicationProperties.getOrDefault("FlinkApplicationProperties", new Properties());
+        Properties jobProperties = applicationProperties.get("dev");
 
         String region = flinkProperties.getProperty("aws.region", "eu-west-1");
         String warehousePath = flinkProperties.getProperty("warehouse.path", "s3://sbca-bronze");
-        String dataCatalog = flinkProperties.getProperty("data.catalog", "iceberg_catalog");
-        endPointUrl = flinkProperties.getProperty("api.endpoint.url");
+        String dataCatalog = jobProperties.getProperty("data.catalog", "iceberg_catalog");
+        endPointUrl = jobProperties.getProperty("api.endpoint.url", "https://webhook.site/#!/view/5d5bfd78-88a0-4d01-8450-0c3bcf5a5d6b");
 
         LOG.info("Using Glue catalog at {} in {}", warehousePath, region);
 
@@ -82,20 +84,13 @@ public class QueryExecutor extends RichFlatMapFunction<String, QueryExecutor.Lab
             Table table = executor.sqlQuery(rawQuery);
             String[] fieldNames = RowToJsonConverter.extractFieldNames(table);
 
-            executor.streamQuery(table)
-                    .map(row -> new LabeledRow(row, fieldNames))
-                    .returns(LabeledRow.class)
-                    .addSink(new ApiSinkFunction(endPointUrl));
-
-
-
-//            try (CloseableIterator<Row> iterator = executor.collectQuery(table)) {
-//                while (iterator.hasNext()) {
-//                    Row row = iterator.next();
-//                    LabeledRow labeledRow = new LabeledRow(row, fieldNames);
-//                    out.collect(labeledRow);
-//                }
-//            }
+            try (CloseableIterator<Row> iterator = executor.collectQuery(table)) {
+                while (iterator.hasNext()) {
+                    Row row = iterator.next();
+                    LabeledRow labeledRow = new LabeledRow(row, fieldNames);
+                    out.collect(labeledRow);
+                }
+            }
         } catch (Exception e) {
             LOG.error("Failed to execute query: {}", e.getMessage(), e);
         }
