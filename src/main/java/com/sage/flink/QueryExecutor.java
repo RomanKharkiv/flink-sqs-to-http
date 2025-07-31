@@ -40,6 +40,28 @@ public class QueryExecutor extends RichFlatMapFunction<String, QueryExecutor.Lab
 
     @Override
     public void open(Configuration parameters) throws Exception {
+        super.open(parameters);
+
+        LOG.info("=== Debugging Iceberg Classes ===");
+        String[] classesToCheck = {
+                "org.apache.iceberg.flink.source.FlinkInputFormat",
+                "org.apache.iceberg.flink.FlinkCatalog",
+                "org.apache.iceberg.flink.TableLoader",
+                "org.apache.iceberg.aws.s3.S3FileIO",
+                "org.apache.iceberg.catalog.Catalog"
+        };
+
+        for (String className : classesToCheck) {
+            try {
+                Class.forName(className);
+                LOG.info("✓ Found class: {}", className);
+            } catch (ClassNotFoundException e) {
+                LOG.error("✗ Missing class: {}", className);
+            }
+        }
+
+        LOG.info("Current classpath: {}", System.getProperty("java.class.path"));
+
         LOG.info("Initializing QueryExecutor");
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
