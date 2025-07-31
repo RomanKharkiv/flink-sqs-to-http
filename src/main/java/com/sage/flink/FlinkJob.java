@@ -3,20 +3,32 @@ package com.sage.flink;
 import com.amazonaws.services.kinesisanalytics.runtime.KinesisAnalyticsRuntime;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.types.Row;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class FlinkJob {
     private static final Logger LOG = LoggerFactory.getLogger(FlinkJob.class);
-    private static final Class<?> ICEBERG_INPUT_FORMAT_CLASS = org.apache.iceberg.flink.source.FlinkInputFormat.class;
-
+    private static final Pattern TENANT_LOOKUP_PATTERN = Pattern.compile(
+            "SELECT\\s+([^\\s]+|\\*|[^\\s]+(\\s*,\\s*[^\\s]+)*)\\s+FROM\\s+sbca_bronze\\.businesses\\s+WHERE\\s+tenant_id\\s*=\\s*'([a-zA-Z0-9\\-]+)'\\s*" +
+            "(?:\\s+ORDER\\s+BY\\s+([^\\s;]+(?:\\s+(?:ASC|DESC))?(?:\\s*,\\s*[^\\s;]+(?:\\s+(?:ASC|DESC))?)*))?\\s*" +
+            "(?:\\s+LIMIT\\s+(\\d+))?\\s*;?\\s*",
+            Pattern.CASE_INSENSITIVE
+    );
     public static void main(String[] args) throws Exception {
         LOG.info("Starting SQS source Flink job");
         Class.forName("org.apache.iceberg.flink.source.FlinkInputFormat");
@@ -30,7 +42,24 @@ public class FlinkJob {
 
         String sqsQueueUrl = appConfigProperties.getProperty("aws.sqs.queue.url");
         String awsRegion = appConfigProperties.getProperty("aws.region");
-        String endPointUrl = appConfigProperties.getProperty("api.endpoint.url");
+        String endPointUrl = appConfigProperties.getProperty("api.endpoint.url", "https://webhook.site/#!/view/5d5bfd78-88a0-4d01-8450-0c3bcf5a5d6b");
+
+        String warehousePath = appConfigProperties.getProperty("warehouse.path", "s3://sbca-bronze");
+        String dataCatalog = appConfigProperties.getProperty("data.catalog", "iceberg_catalog");
+
+
+        String createCatalogSQL =
+                "CREATE CATALOG " + dataCatalog + " WITH (" +
+                "'type' = 'iceberg', " +
+                "'catalog-impl' = 'org.apache.iceberg.aws.glue.GlueCatalog', " +
+                "'io-impl' = 'org.apache.iceberg.aws.s3.S3FileIO', " +
+                "'warehouse' = '" + warehousePath + "', " +
+                "'aws.region' = '" + awsRegion + "'" +
+                ")";
+
+        tEnv.executeSql(createCatalogSQL);
+        tEnv.useCatalog(dataCatalog);
+        tEnv.useDatabase(warehousePath.substring(5));
 
         CustomSqsSource<String> sqsSource = CustomSqsSource.<String>builder()
                 .queueUrl(sqsQueueUrl)
@@ -50,25 +79,38 @@ public class FlinkJob {
 
 
         LOG.info("Created DataStream from SQS!");
+        DataStream<String> tenantStream = sqsMessages
+                .map(message -> {
+                    JSONObject json = new JSONObject(message);
+                    return json.getString("query").trim();
+                })
+                .filter(query -> TENANT_LOOKUP_PATTERN.matcher(query).matches())
+                .map(query -> {
+                    Matcher matcher = TENANT_LOOKUP_PATTERN.matcher(query);
+                    if (!matcher.matches()) {
+                        throw new IllegalStateException("Unexpected non-matching query slipped through filter: " + query);
+                    }
+                    return matcher.group(3);
+                })
+                .returns(Types.STRING)
+                .name("Extract tenant_id");
 
-        DataStream<QueryExecutor.LabeledRow> queryResults = sqsMessages
-                .flatMap(new QueryExecutor())
-                .name("Iceberg query Executor")
-                .returns(TypeInformation.of(QueryExecutor.LabeledRow.class));
 
-        queryResults
-                .addSink(new ApiSinkFunction(endPointUrl))
-                .name("HTTP Sink");
+        MapStateDescriptor<String, String> broadcastStateDescriptor =
+                new MapStateDescriptor<>("TenantBroadcastState", Types.STRING, Types.STRING);
 
-//        DataStream<QueryExecutor.LabeledRow> tenantStream = sqsMessages
-//                .map(new TenantLookupQuery(tEnv))
-//                .returns(TypeInformation.of(QueryExecutor.LabeledRow.class))
-//                .name("Tenant Lookup");
-//
-//        tenantStream
-//                .addSink(new ApiSinkFunction(endPointUrl))
-//                .name("HTTP-Sink");
+        BroadcastStream<String> tenantBroadcast = tenantStream.broadcast(broadcastStateDescriptor);
+        Table allData = tEnv.from("businesses");
+        DataStream<Row> allRows = tEnv.toDataStream(allData);
 
+        DataStream<Row> filteredRows = allRows
+                .connect(tenantBroadcast)
+                .process(new TenantRowFilterFunction(broadcastStateDescriptor))
+                .name("TenantRowFilter");
+
+        filteredRows
+                .addSink(new ApiHttp2SinkFunction(endPointUrl))
+                .name("HTTP Row Sink");;
 
         env.execute("Flink Iceberg Query to external API");
     }
