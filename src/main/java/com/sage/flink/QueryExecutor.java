@@ -45,7 +45,8 @@ public class QueryExecutor extends RichFlatMapFunction<String, QueryExecutor.Lab
     @Override
     public void open(Configuration parameters) throws Exception {
         super.open(parameters);
-
+        LOG.info("Force loading IcebergInputFormat to avoid deserialization crash");
+        Class.forName("org.apache.iceberg.flink.source.FlinkInputFormat");
         LOG.info("=== Debugging Iceberg Classes ===");
         String[] classesToCheck = {
                 "org.apache.iceberg.flink.source.FlinkInputFormat",

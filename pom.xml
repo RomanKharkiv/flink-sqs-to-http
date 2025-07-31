@@ -158,7 +158,7 @@
             <groupId>org.apache.iceberg</groupId>
             <artifactId>iceberg-flink-runtime-1.18</artifactId>
             <version>${iceberg.version}</version>
-            <scope>compile</scope>
+<!--            <scope>compile</scope>-->
         </dependency>
         <dependency>
             <groupId>org.apache.iceberg</groupId>

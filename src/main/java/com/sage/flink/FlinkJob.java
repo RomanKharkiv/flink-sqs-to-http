@@ -18,6 +18,7 @@ public class FlinkJob {
 
     public static void main(String[] args) throws Exception {
         LOG.info("Starting SQS source Flink job");
+        Class.forName("org.apache.iceberg.flink.source.FlinkInputFormat");
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
         Properties appConfigProperties;
