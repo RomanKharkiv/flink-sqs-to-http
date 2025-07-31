@@ -15,10 +15,12 @@ import java.util.Properties;
 
 public class FlinkJob {
     private static final Logger LOG = LoggerFactory.getLogger(FlinkJob.class);
+    private static final Class<?> ICEBERG_INPUT_FORMAT_CLASS = org.apache.iceberg.flink.source.FlinkInputFormat.class;
 
     public static void main(String[] args) throws Exception {
         LOG.info("Starting SQS source Flink job");
         Class.forName("org.apache.iceberg.flink.source.FlinkInputFormat");
+
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
         Properties appConfigProperties;
