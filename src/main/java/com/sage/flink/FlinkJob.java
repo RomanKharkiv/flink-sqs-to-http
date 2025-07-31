@@ -51,23 +51,23 @@ public class FlinkJob {
 
         LOG.info("Created DataStream from SQS!");
 
-//        DataStream<QueryExecutor.LabeledRow> queryResults = sqsMessages
-//                .flatMap(new QueryExecutor())
-//                .name("Iceberg query Executor")
-//                .returns(TypeInformation.of(QueryExecutor.LabeledRow.class));
-//
-//        queryResults
-//                .addSink(new ApiSinkFunction(endPointUrl))
-//                .name("HTTP Sink");
+        DataStream<QueryExecutor.LabeledRow> queryResults = sqsMessages
+                .flatMap(new QueryExecutor())
+                .name("Iceberg query Executor")
+                .returns(TypeInformation.of(QueryExecutor.LabeledRow.class));
 
-        DataStream<QueryExecutor.LabeledRow> tenantStream = sqsMessages
-                .map(new TenantLookupQuery(tEnv))
-                .returns(TypeInformation.of(QueryExecutor.LabeledRow.class))
-                .name("Tenant Lookup");
-
-        tenantStream
+        queryResults
                 .addSink(new ApiSinkFunction(endPointUrl))
-                .name("HTTP-Sink");
+                .name("HTTP Sink");
+
+//        DataStream<QueryExecutor.LabeledRow> tenantStream = sqsMessages
+//                .map(new TenantLookupQuery(tEnv))
+//                .returns(TypeInformation.of(QueryExecutor.LabeledRow.class))
+//                .name("Tenant Lookup");
+//
+//        tenantStream
+//                .addSink(new ApiSinkFunction(endPointUrl))
+//                .name("HTTP-Sink");
 
 
         env.execute("Flink Iceberg Query to external API");
