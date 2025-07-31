@@ -14,7 +14,7 @@ import java.util.List;
 public class FlinkTableExecutor {
 
     private static final Logger LOG = LoggerFactory.getLogger(FlinkTableExecutor.class);
-    private final StreamTableEnvironment tEnv;
+    private transient final StreamTableEnvironment tEnv;
 
     public FlinkTableExecutor(StreamTableEnvironment tEnv) {
         this.tEnv = tEnv;

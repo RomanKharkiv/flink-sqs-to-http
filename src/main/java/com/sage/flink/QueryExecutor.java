@@ -5,7 +5,6 @@ import com.sage.flink.utils.FlinkTableExecutor;
 import com.sage.flink.utils.RowToJsonConverter;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
@@ -22,7 +21,7 @@ import java.util.regex.Pattern;
 public class QueryExecutor extends RichFlatMapFunction<String, QueryExecutor.LabeledRow> {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(QueryExecutor.class);
-
+    private transient final StreamTableEnvironment tEnv;
     private transient FlinkTableExecutor executor;
     private String endPointUrl;
 
@@ -37,6 +36,11 @@ public class QueryExecutor extends RichFlatMapFunction<String, QueryExecutor.Lab
             "SELECT\\s+([^\\s]+|\\*|[^\\s]+(\\s*,\\s*[^\\s]+)*)\\s+FROM sbca_bronze\\.businesses WHERE \\(updated_at >= CURRENT_TIMESTAMP - INTERVAL .* DAY .*\\) .*;",
             Pattern.CASE_INSENSITIVE | Pattern.DOTALL
     );
+
+    public QueryExecutor(StreamTableEnvironment tEnv) {
+        this.tEnv = tEnv;
+        executor = new FlinkTableExecutor(tEnv);
+    }
 
     @Override
     public void open(Configuration parameters) throws Exception {
@@ -63,9 +67,6 @@ public class QueryExecutor extends RichFlatMapFunction<String, QueryExecutor.Lab
         LOG.info("Current classpath: {}", System.getProperty("java.class.path"));
 
         LOG.info("Initializing QueryExecutor");
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
-        executor = new FlinkTableExecutor(tEnv);
 
         Map<String, Properties> applicationProperties = KinesisAnalyticsRuntime.getApplicationProperties();
         Properties flinkProperties = applicationProperties.getOrDefault("FlinkApplicationProperties", new Properties());
