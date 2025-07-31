@@ -8,7 +8,7 @@ import org.json.JSONObject;
 
 public class TenantLookupQuery extends RichMapFunction<String, QueryExecutor.LabeledRow> {
 
-    private final StreamTableEnvironment tEnv;
+    private transient final StreamTableEnvironment tEnv;
 
     public TenantLookupQuery(StreamTableEnvironment tEnv) {
         this.tEnv = tEnv;
