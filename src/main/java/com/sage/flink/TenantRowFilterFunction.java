@@ -8,10 +8,17 @@ import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class TenantRowFilterFunction extends BroadcastProcessFunction<Row, String, Row> {
     private static final Logger LOG = LoggerFactory.getLogger(TenantRowFilterFunction.class);
 
     private final MapStateDescriptor<String, String> stateDescriptor;
+
+    // buffer until we get a broadcast match
+    private final List<Row> bufferedRows = new ArrayList<>();
+    private boolean broadcastReceived = false;
 
     public TenantRowFilterFunction(MapStateDescriptor<String, String> stateDescriptor) {
         this.stateDescriptor = stateDescriptor;
@@ -23,8 +30,17 @@ public class TenantRowFilterFunction extends BroadcastProcessFunction<Row, Strin
             String tenantId,
             Context ctx,
             Collector<Row> out) throws Exception {
-        LOG.info("TenantRowFilterFunction processBroadcastElement: {}.", tenantId);
+        LOG.info("Received broadcast tenant ID: {}", tenantId);
         ctx.getBroadcastState(stateDescriptor).put(tenantId, "active");
+        broadcastReceived = true;
+
+        LOG.info("Flushing {} buffered rows", bufferedRows.size());
+        bufferedRows.stream()
+                .filter(row -> tenantId.equals(row.getField("tenant_id")))
+                .peek(row -> LOG.info("Flushed buffered row for tenant {}", row.getField("tenant_id")))
+                .forEach(out::collect);
+
+        bufferedRows.clear();
     }
 
     @Override
@@ -32,23 +48,19 @@ public class TenantRowFilterFunction extends BroadcastProcessFunction<Row, Strin
             Row row,
             ReadOnlyContext ctx,
             Collector<Row> out) throws Exception {
-        LOG.info("TenantRowFilterFunction processElement: {}.", row.toString());
-        ReadOnlyBroadcastState<String, String> state = ctx.getBroadcastState(stateDescriptor);
-        state.immutableEntries().forEach(entry ->
-                LOG.info("Active broadcast tenant: {}", entry.getKey())
-        );
 
-        LOG.info("TenantRowFilterFunction processElement state: {}.", state.toString());
         String rowTenantId = (String) row.getField("tenant_id");
-        LOG.info("TenantRowFilterFunction processElement rowTenantId: {}.", rowTenantId);
+        ReadOnlyBroadcastState<String, String> state = ctx.getBroadcastState(stateDescriptor);
 
-        if (state.contains(rowTenantId)) {
-            LOG.info("TenantRowFilterFunction: Emitting matched tenant row: {}", rowTenantId);
-            out.collect(row);
-        } else {
-            LOG.info("TenantRowFilterFunction: Skipping row for tenant_id: {}", rowTenantId);
+        if (!broadcastReceived) {
+            LOG.info("No broadcast received yet. Buffering row...");
+            bufferedRows.add(row);
+            return;
         }
 
+        if (state.contains(rowTenantId)) {
+            LOG.info("Tenant match found. Emitting row.");
+            out.collect(row);
+        }
     }
 }
-

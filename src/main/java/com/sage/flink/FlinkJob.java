@@ -18,6 +18,7 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
@@ -67,6 +68,16 @@ public class FlinkJob {
         tEnv.useCatalog(dataCatalog);
         tEnv.useDatabase(database);
 
+        MapStateDescriptor<String, String> broadcastStateDescriptor =
+                new MapStateDescriptor<>("TenantBroadcastState", Types.STRING, Types.STRING);
+        Table allData = tEnv.from("businesses");
+        DataType dataType = allData.getResolvedSchema().toPhysicalRowDataType();
+        RowType rowType = (RowType) dataType.getLogicalType();
+
+        String[] fieldNames = rowType.getFieldNames().toArray(new String[0]);
+        LOG.info("FieldNames: - {}", Arrays.toString(fieldNames));
+        DataStream<Row> allRows = tEnv.toDataStream(allData);
+
         CustomSqsSource<String> sqsSource = CustomSqsSource.<String>builder()
                 .queueUrl(sqsQueueUrl)
                 .region(awsRegion)
@@ -82,7 +93,6 @@ public class FlinkJob {
                 sqsQueueUrl.substring(sqsQueueUrl.lastIndexOf('/') + 1),
                 TypeInformation.of(String.class)
         );
-
 
         LOG.info("Created DataStream from SQS!");
         DataStream<String> tenantStream = sqsMessages
@@ -105,17 +115,8 @@ public class FlinkJob {
                 .returns(Types.STRING)
                 .name("Extract tenant_id");
 
-
-        MapStateDescriptor<String, String> broadcastStateDescriptor =
-                new MapStateDescriptor<>("TenantBroadcastState", Types.STRING, Types.STRING);
-
         BroadcastStream<String> tenantBroadcast = tenantStream.broadcast(broadcastStateDescriptor);
-        Table allData = tEnv.from("businesses");
-        DataType dataType = allData.getResolvedSchema().toPhysicalRowDataType();
-        RowType rowType = (RowType) dataType.getLogicalType();
 
-        String[] fieldNames = rowType.getFieldNames().toArray(new String[0]);
-        DataStream<Row> allRows = tEnv.toDataStream(allData);
 
         DataStream<LabeledRow> labeledFilteredRows = allRows
                 .connect(tenantBroadcast)
