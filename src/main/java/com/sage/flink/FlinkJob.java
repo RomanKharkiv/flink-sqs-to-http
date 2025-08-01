@@ -51,6 +51,7 @@ public class FlinkJob {
 
         String warehousePath = appConfigProperties.getProperty("warehouse.path", "s3://sbca-bronze");
         String dataCatalog = appConfigProperties.getProperty("data.catalog", "iceberg_catalog");
+        String database = appConfigProperties.getProperty("database", "sbca_bronze");
 
 
         String createCatalogSQL =
@@ -64,7 +65,7 @@ public class FlinkJob {
 
         tEnv.executeSql(createCatalogSQL);
         tEnv.useCatalog(dataCatalog);
-        tEnv.useDatabase(warehousePath.substring(5));
+        tEnv.useDatabase(database);
 
         CustomSqsSource<String> sqsSource = CustomSqsSource.<String>builder()
                 .queueUrl(sqsQueueUrl)
@@ -87,7 +88,9 @@ public class FlinkJob {
         DataStream<String> tenantStream = sqsMessages
                 .map(message -> {
                     JSONObject json = new JSONObject(message);
-                    return json.getString("query").trim();
+                    String query = json.getString("query").trim();
+                    LOG.info("Received query: {}", query);
+                    return query;
                 })
                 .filter(query -> TENANT_LOOKUP_PATTERN.matcher(query).matches())
                 .map(query -> {
@@ -95,16 +98,12 @@ public class FlinkJob {
                     if (!matcher.matches()) {
                         throw new IllegalStateException("Unexpected non-matching query slipped through filter: " + query);
                     }
-                    return matcher.group(3);
+                    String tenantId = matcher.group(3);
+                    LOG.info("Received tenantId: {}", tenantId);
+                    return tenantId;
                 })
                 .returns(Types.STRING)
                 .name("Extract tenant_id");
-
-        tenantStream.map(id -> {
-            LOG.info("Received tenant ID: {}", id);
-            return id;
-        });
-
 
 
         MapStateDescriptor<String, String> broadcastStateDescriptor =
@@ -125,7 +124,6 @@ public class FlinkJob {
                 .returns(Types.POJO(LabeledRow.class))
                 .name("TenantRowFilter with LabeledRow");
 
-
 //        filteredRows
 //                .addSink(new ApiHttp2SinkFunction(endPointUrl))
 //                .name("HTTP Row Sink");
@@ -135,7 +133,6 @@ public class FlinkJob {
                 .process(new BatchingRowToJsonFunction(10, 5000)) // 10 rows or 5 sec
                 .addSink(new ApiSinkFunction(endPointUrl))
                 .name("HTTP Row Batch Sink");
-
 
         env.execute("Flink Iceberg Query to external API");
     }
