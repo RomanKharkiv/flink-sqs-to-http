@@ -47,7 +47,7 @@ public class FlinkJob {
         String awsRegion = appConfigProperties.getProperty("aws.region");
         String endPointUrl = appConfigProperties.getProperty(
                 "api.endpoint.url",
-                "https://webhook.site/5d5bfd78-88a0-4d01-8450-0c3bcf5a5d6b"
+                "https://webhook.site/f9a2e949-bd82-40b7-8f36-8d57063bdec5"
         );
 
         String warehousePath = appConfigProperties.getProperty("warehouse.path", "s3://sbca-bronze");

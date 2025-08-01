@@ -81,17 +81,14 @@ public class ApiSinkFunction extends RichSinkFunction<String> {
                         success = true;
                         LOG.debug("HTTP request successful, status code: {}", statusCode);
                     } else if (statusCode == 429) {
-                        // Too Many Requests – handle gracefully
                         Header retryHeader = response.getFirstHeader("Retry-After");
                         long delay = retryHeader != null ? Long.parseLong(retryHeader.getValue()) * 1000L : retryDelayMs * attempts * 2;
                         LOG.warn("429 Too Many Requests. Sleeping for {} ms before retrying...", delay);
                         Thread.sleep(delay);
                     } else if (statusCode >= 500) {
-                        // Server error – exponential backoff
                         LOG.warn("Server error {}: {} — retrying", statusCode, responseBody);
                         Thread.sleep(retryDelayMs * attempts);
                     } else {
-                        // Client error – no retry
                         throw new IOException("HTTP request failed with status code: " + statusCode + ", response: " + responseBody);
                     }
                 }
