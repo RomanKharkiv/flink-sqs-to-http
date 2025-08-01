@@ -124,10 +124,6 @@ public class FlinkJob {
                 .returns(Types.POJO(LabeledRow.class))
                 .name("TenantRowFilter with LabeledRow");
 
-//        filteredRows
-//                .addSink(new ApiHttp2SinkFunction(endPointUrl))
-//                .name("HTTP Row Sink");
-
         labeledFilteredRows
                 .keyBy(row -> "single") // global key if batching everything together
                 .process(new BatchingRowToJsonFunction(10, 5000)) // 10 rows or 5 sec

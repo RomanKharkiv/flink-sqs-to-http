@@ -34,15 +34,21 @@ public class TenantRowFilterFunction extends BroadcastProcessFunction<Row, Strin
             Collector<Row> out) throws Exception {
         LOG.info("TenantRowFilterFunction processElement: {}.", row.toString());
         ReadOnlyBroadcastState<String, String> state = ctx.getBroadcastState(stateDescriptor);
+        state.immutableEntries().forEach(entry ->
+                LOG.info("Active broadcast tenant: {}", entry.getKey())
+        );
+
         LOG.info("TenantRowFilterFunction processElement state: {}.", state.toString());
         String rowTenantId = (String) row.getField("tenant_id");
         LOG.info("TenantRowFilterFunction processElement rowTenantId: {}.", rowTenantId);
 
         if (state.contains(rowTenantId)) {
-            LOG.info("TenantRowFilterFunction processElement contains");
-            out.collect(row);  // Only emit rows that match active tenant_id
+            LOG.info("TenantRowFilterFunction: Emitting matched tenant row: {}", rowTenantId);
+            out.collect(row);
+        } else {
+            LOG.info("TenantRowFilterFunction: Skipping row for tenant_id: {}", rowTenantId);
         }
-        out.collect(row);
+
     }
 }
 

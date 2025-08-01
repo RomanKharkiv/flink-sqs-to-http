@@ -2,6 +2,7 @@ package com.sage.flink;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.http.Header;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
@@ -74,17 +75,24 @@ public class ApiSinkFunction extends RichSinkFunction<String> {
                 LOG.debug("Sending HTTP request, attempt {}/{}", attempts, maxRetries);
                 try (CloseableHttpResponse response = httpClient.execute(post)) {
                     int statusCode = response.getStatusLine().getStatusCode();
+                    String responseBody = EntityUtils.toString(response.getEntity());
+
                     if (statusCode >= 200 && statusCode < 300) {
                         success = true;
                         LOG.debug("HTTP request successful, status code: {}", statusCode);
+                    } else if (statusCode == 429) {
+                        // Too Many Requests – handle gracefully
+                        Header retryHeader = response.getFirstHeader("Retry-After");
+                        long delay = retryHeader != null ? Long.parseLong(retryHeader.getValue()) * 1000L : retryDelayMs * attempts * 2;
+                        LOG.warn("429 Too Many Requests. Sleeping for {} ms before retrying...", delay);
+                        Thread.sleep(delay);
+                    } else if (statusCode >= 500) {
+                        // Server error – exponential backoff
+                        LOG.warn("Server error {}: {} — retrying", statusCode, responseBody);
+                        Thread.sleep(retryDelayMs * attempts);
                     } else {
-                        String responseBody = EntityUtils.toString(response.getEntity());
-                        LOG.warn("HTTP request failed with status code: {}, response: {}", statusCode, responseBody);
-                        if (statusCode >= 500) {
-                            Thread.sleep(retryDelayMs * attempts);
-                        } else {
-                            throw new IOException("HTTP request failed with status code: " + statusCode);
-                        }
+                        // Client error – no retry
+                        throw new IOException("HTTP request failed with status code: " + statusCode + ", response: " + responseBody);
                     }
                 }
             } catch (IOException e) {
