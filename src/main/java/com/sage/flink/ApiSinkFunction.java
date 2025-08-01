@@ -1,6 +1,5 @@
 package com.sage.flink;
 
-import com.sage.flink.utils.RowToJsonConverter;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.http.client.config.RequestConfig;
@@ -11,14 +10,13 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.util.EntityUtils;
-import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-public class ApiSinkFunction extends RichSinkFunction<QueryExecutor.LabeledRow> {
+public class ApiSinkFunction extends RichSinkFunction<String> {
     private static final Logger LOG = LoggerFactory.getLogger(ApiSinkFunction.class);
 
     private transient CloseableHttpClient httpClient;
@@ -59,13 +57,12 @@ public class ApiSinkFunction extends RichSinkFunction<QueryExecutor.LabeledRow> 
     }
 
     @Override
-    public void invoke(QueryExecutor.LabeledRow labeled, Context context) throws Exception {
-        LOG.info("HTTP client invoke with labeled: {}", labeled);
-        JSONObject json = RowToJsonConverter.convert(labeled.getRow(), labeled.getFieldNames());
-        LOG.info("HTTP client invoke with json: {}", json);
+    public void invoke(String json, Context context) throws Exception {
+        LOG.info("HTTP client invoke with JSON string: {}", json);
+
         HttpPost post = new HttpPost(endPointUrl);
         post.setHeader("Content-Type", "application/json");
-        post.setEntity(new StringEntity(json.toString(), StandardCharsets.UTF_8));
+        post.setEntity(new StringEntity(json, StandardCharsets.UTF_8));
 
         int attempts = 0;
         boolean success = false;
@@ -82,13 +79,10 @@ public class ApiSinkFunction extends RichSinkFunction<QueryExecutor.LabeledRow> 
                         LOG.debug("HTTP request successful, status code: {}", statusCode);
                     } else {
                         String responseBody = EntityUtils.toString(response.getEntity());
-                        LOG.warn("HTTP request failed with status code: {}, response: {}",
-                                statusCode, responseBody);
+                        LOG.warn("HTTP request failed with status code: {}, response: {}", statusCode, responseBody);
                         if (statusCode >= 500) {
-                            // Server error, retry
                             Thread.sleep(retryDelayMs * attempts);
                         } else {
-                            // Client error, don't retry
                             throw new IOException("HTTP request failed with status code: " + statusCode);
                         }
                     }
@@ -107,6 +101,7 @@ public class ApiSinkFunction extends RichSinkFunction<QueryExecutor.LabeledRow> 
             throw new IOException("Failed to send HTTP request after " + maxRetries + " attempts", lastException);
         }
     }
+
 
     @Override
     public void close() throws Exception {

@@ -11,6 +11,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -42,7 +44,10 @@ public class FlinkJob {
 
         String sqsQueueUrl = appConfigProperties.getProperty("aws.sqs.queue.url");
         String awsRegion = appConfigProperties.getProperty("aws.region");
-        String endPointUrl = appConfigProperties.getProperty("api.endpoint.url", "https://webhook.site/#!/view/5d5bfd78-88a0-4d01-8450-0c3bcf5a5d6b");
+        String endPointUrl = appConfigProperties.getProperty(
+                "api.endpoint.url",
+                "https://webhook.site/5d5bfd78-88a0-4d01-8450-0c3bcf5a5d6b"
+        );
 
         String warehousePath = appConfigProperties.getProperty("warehouse.path", "s3://sbca-bronze");
         String dataCatalog = appConfigProperties.getProperty("data.catalog", "iceberg_catalog");
@@ -95,22 +100,42 @@ public class FlinkJob {
                 .returns(Types.STRING)
                 .name("Extract tenant_id");
 
+        tenantStream.map(id -> {
+            LOG.info("Received tenant ID: {}", id);
+            return id;
+        });
+
+
 
         MapStateDescriptor<String, String> broadcastStateDescriptor =
                 new MapStateDescriptor<>("TenantBroadcastState", Types.STRING, Types.STRING);
 
         BroadcastStream<String> tenantBroadcast = tenantStream.broadcast(broadcastStateDescriptor);
         Table allData = tEnv.from("businesses");
+        DataType dataType = allData.getResolvedSchema().toPhysicalRowDataType();
+        RowType rowType = (RowType) dataType.getLogicalType();
+
+        String[] fieldNames = rowType.getFieldNames().toArray(new String[0]);
         DataStream<Row> allRows = tEnv.toDataStream(allData);
 
-        DataStream<Row> filteredRows = allRows
+        DataStream<LabeledRow> labeledFilteredRows = allRows
                 .connect(tenantBroadcast)
                 .process(new TenantRowFilterFunction(broadcastStateDescriptor))
-                .name("TenantRowFilter");
+                .map(row -> new LabeledRow(row, fieldNames))
+                .returns(Types.POJO(LabeledRow.class))
+                .name("TenantRowFilter with LabeledRow");
 
-        filteredRows
-                .addSink(new ApiHttp2SinkFunction(endPointUrl))
-                .name("HTTP Row Sink");;
+
+//        filteredRows
+//                .addSink(new ApiHttp2SinkFunction(endPointUrl))
+//                .name("HTTP Row Sink");
+
+        labeledFilteredRows
+                .keyBy(row -> "single") // global key if batching everything together
+                .process(new BatchingRowToJsonFunction(10, 5000)) // 10 rows or 5 sec
+                .addSink(new ApiSinkFunction(endPointUrl))
+                .name("HTTP Row Batch Sink");
+
 
         env.execute("Flink Iceberg Query to external API");
     }
