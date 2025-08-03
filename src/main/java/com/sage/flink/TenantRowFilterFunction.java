@@ -16,7 +16,6 @@ public class TenantRowFilterFunction extends BroadcastProcessFunction<Row, Strin
 
     private final MapStateDescriptor<String, String> stateDescriptor;
 
-    // buffer until we get a broadcast match
     private final List<Row> bufferedRows = new ArrayList<>();
     private boolean broadcastReceived = false;
 
@@ -51,6 +50,8 @@ public class TenantRowFilterFunction extends BroadcastProcessFunction<Row, Strin
 
         String rowTenantId = (String) row.getField("tenant_id");
         ReadOnlyBroadcastState<String, String> state = ctx.getBroadcastState(stateDescriptor);
+        LOG.info("ReadOnlyBroadcastState: {} entries: {}", state, state.immutableEntries());
+
 
         if (!broadcastReceived) {
             LOG.info("No broadcast received yet. Buffering row...");

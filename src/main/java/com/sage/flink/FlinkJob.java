@@ -127,7 +127,7 @@ public class FlinkJob {
 
         labeledFilteredRows
                 .keyBy(row -> "single") // global key if batching everything together
-                .process(new BatchingRowToJsonFunction(10, 5000)) // 10 rows or 5 sec
+                .process(new BatchingRowToJsonFunction(100, 5000)) // 10 rows or 5 sec
                 .addSink(new ApiSinkFunction(endPointUrl))
                 .name("HTTP Row Batch Sink");
 

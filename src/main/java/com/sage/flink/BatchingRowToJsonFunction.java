@@ -9,11 +9,14 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class BatchingRowToJsonFunction extends KeyedProcessFunction<String, LabeledRow, String> {
+    private static final Logger LOG = LoggerFactory.getLogger(BatchingRowToJsonFunction.class);
 
     private final int maxBatchSize;
     private final long flushIntervalMs;
@@ -21,22 +24,27 @@ public class BatchingRowToJsonFunction extends KeyedProcessFunction<String, Labe
     private transient ListState<LabeledRow> bufferState;
 
     public BatchingRowToJsonFunction(int maxBatchSize, long flushIntervalMs) {
+        LOG.info("Creating BatchingRowToJsonFunction");
         this.maxBatchSize = maxBatchSize;
         this.flushIntervalMs = flushIntervalMs;
     }
 
     @Override
     public void open(Configuration parameters) {
+        LOG.info("Opening BatchingRowToJsonFunction with params {}", parameters);
         ListStateDescriptor<LabeledRow> descriptor = new ListStateDescriptor<>(
                 "labeledRowBuffer",
                 Types.POJO(LabeledRow.class)
         );
         bufferState = getRuntimeContext().getListState(descriptor);
+        LOG.info("Opening BatchingRowToJsonFunction with bufferState: {}", bufferState);
     }
 
     @Override
     public void processElement(LabeledRow value, Context ctx, Collector<String> out) throws Exception {
+        LOG.info("Processing element with value: {}", value);
         bufferState.add(value);
+        LOG.info("Processing element with bufferState: {}", bufferState);
 
         List<LabeledRow> current = new ArrayList<>();
         for (LabeledRow row : bufferState.get()) {
@@ -53,6 +61,7 @@ public class BatchingRowToJsonFunction extends KeyedProcessFunction<String, Labe
 
     @Override
     public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out) throws Exception {
+        LOG.info("On Timer with timestamp: {}", timestamp);
         List<LabeledRow> current = new ArrayList<>();
         for (LabeledRow row : bufferState.get()) {
             current.add(row);
@@ -65,6 +74,7 @@ public class BatchingRowToJsonFunction extends KeyedProcessFunction<String, Labe
     }
 
     private void flush(List<LabeledRow> rows, Collector<String> out) {
+        LOG.info("Flushing {} rows", rows.size());
         JSONArray array = new JSONArray();
         for (LabeledRow labeledRow : rows) {
             JSONObject obj = new JSONObject();
@@ -79,6 +89,7 @@ public class BatchingRowToJsonFunction extends KeyedProcessFunction<String, Labe
 
             array.put(obj);
         }
+        LOG.info("Flushed {} rows", array.toString());
         out.collect(array.toString());
     }
 }
