@@ -43,25 +43,16 @@ public class TenantRowFilterFunction extends BroadcastProcessFunction<Row, Strin
     }
 
     @Override
-    public void processElement(
-            Row row,
-            ReadOnlyContext ctx,
-            Collector<Row> out) throws Exception {
-
+    public void processElement(Row row, ReadOnlyContext ctx, Collector<Row> out) throws Exception {
         String rowTenantId = (String) row.getField("tenant_id");
         ReadOnlyBroadcastState<String, String> state = ctx.getBroadcastState(stateDescriptor);
-        LOG.info("ReadOnlyBroadcastState: {} entries: {}", state, state.immutableEntries());
-
-
-        if (!broadcastReceived) {
-            LOG.info("No broadcast received yet. Buffering row...");
-            bufferedRows.add(row);
-            return;
-        }
 
         if (state.contains(rowTenantId)) {
             LOG.info("Tenant match found. Emitting row.");
             out.collect(row);
+        } else {
+            LOG.info("No match for tenant {}, skipping", rowTenantId);
         }
     }
+
 }

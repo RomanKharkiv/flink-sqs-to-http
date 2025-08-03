@@ -70,7 +70,14 @@ public class FlinkJob {
 
         MapStateDescriptor<String, String> broadcastStateDescriptor =
                 new MapStateDescriptor<>("TenantBroadcastState", Types.STRING, Types.STRING);
-        Table allData = tEnv.from("businesses");
+//        Table allData = tEnv.from("businesses");
+        Table allData = tEnv.sqlQuery(
+                "SELECT * FROM businesses /*+ OPTIONS(" +
+                "'monitor-interval'='1s'," +
+                "'scan.incremental.snapshot.enabled'='true'," +
+                "'streaming'='true'" +
+                ") */"
+        );
         DataType dataType = allData.getResolvedSchema().toPhysicalRowDataType();
         RowType rowType = (RowType) dataType.getLogicalType();
 
@@ -126,8 +133,8 @@ public class FlinkJob {
                 .name("TenantRowFilter with LabeledRow");
 
         labeledFilteredRows
-                .keyBy(row -> "single") // global key if batching everything together
-                .process(new BatchingRowToJsonFunction(100, 5000)) // 10 rows or 5 sec
+                .keyBy(row -> row.getRow().getField("tenant_id").toString())
+                .process(new BatchingRowToJsonFunction(10, 5000)) // 10 rows or 5 sec
                 .addSink(new ApiSinkFunction(endPointUrl))
                 .name("HTTP Row Batch Sink");
 
