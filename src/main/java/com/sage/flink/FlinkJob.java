@@ -25,6 +25,8 @@ import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static org.apache.flink.api.common.typeinfo.Types.*;
+
 public class FlinkJob {
     private static final Logger LOG = LoggerFactory.getLogger(FlinkJob.class);
     private static final Pattern TENANT_LOOKUP_PATTERN = Pattern.compile(
@@ -69,7 +71,17 @@ public class FlinkJob {
         tEnv.useCatalog(dataCatalog);
         tEnv.useDatabase(database);
 
-        Table allData = tEnv.from("businesses");
+//        MapStateDescriptor<String, String> broadcastStateDescriptor =
+//                new MapStateDescriptor<>("TenantBroadcastState", Types.STRING, Types.STRING);
+//        Table allData = tEnv.from("businesses");
+        Table allData = tEnv.sqlQuery(
+                "SELECT * FROM sbca_bronze.businesses WHERE tenant_id IS NOT NULL /*+ OPTIONS(" +
+                "'monitor-interval'='1s'," +
+                "'scan.incremental.snapshot.enabled'='true'," +
+                "'streaming'='true'" +
+                ") */"
+        );
+
 
         DataType dataType = allData.getResolvedSchema().toPhysicalRowDataType();
         RowType rowType = (RowType) dataType.getLogicalType();
@@ -104,8 +116,12 @@ public class FlinkJob {
 
 
 
+//        MapStateDescriptor<String, List<Row>> broadcastStateDescriptor =
+//                new MapStateDescriptor<>("tenantRows", Types.STRING, Types.LIST(Types.ROW()));
+
+        TypeInformation<Row> rowTypeInfo = allRows.getType();
         MapStateDescriptor<String, List<Row>> broadcastStateDescriptor =
-                new MapStateDescriptor<>("tenantRows", Types.STRING, Types.LIST(Types.ROW()));
+                new MapStateDescriptor<>("tenantRows", STRING, LIST(rowTypeInfo));
 
         BroadcastStream<Row> broadcastedIcebergRows = allRows.broadcast(broadcastStateDescriptor);
 
