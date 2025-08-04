@@ -27,7 +27,7 @@ public class TenantRowLookupFunction extends BroadcastProcessFunction<String, Ro
         Object rowTenantId = row.getField("tenant_id");
 
         if (rowTenantId == null) {
-            LOG.warn("Skipping row with null tenant_id: {}", row);
+//            LOG.warn("Skipping row with null tenant_id: {}", row);
             return;
         }
 

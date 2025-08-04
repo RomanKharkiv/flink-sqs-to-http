@@ -73,14 +73,14 @@ public class FlinkJob {
 
 //        MapStateDescriptor<String, String> broadcastStateDescriptor =
 //                new MapStateDescriptor<>("TenantBroadcastState", Types.STRING, Types.STRING);
-//        Table allData = tEnv.from("businesses");
-        Table allData = tEnv.sqlQuery(
-                "SELECT * FROM sbca_bronze.businesses WHERE tenant_id IS NOT NULL /*+ OPTIONS(" +
-                "'monitor-interval'='1s'," +
-                "'scan.incremental.snapshot.enabled'='true'," +
-                "'streaming'='true'" +
-                ") */"
-        );
+        Table allData = tEnv.from("businesses");
+//        Table allData = tEnv.sqlQuery(
+//                "SELECT * FROM sbca_bronze.businesses WHERE tenant_id IS NOT NULL /*+ OPTIONS(" +
+//                "'monitor-interval'='1s'," +
+//                "'scan.incremental.snapshot.enabled'='true'," +
+//                "'streaming'='true'" +
+//                ") */"
+//        );
 
 
         DataType dataType = allData.getResolvedSchema().toPhysicalRowDataType();
@@ -88,36 +88,7 @@ public class FlinkJob {
 
         String[] fieldNames = rowType.getFieldNames().toArray(new String[0]);
         LOG.info("FieldNames: - {}", Arrays.toString(fieldNames));
-        DataStream<Row> allRows = tEnv.toDataStream(allData);
-
-//        DataStream<TenantRows> tenantRowMapStream = allRows
-//                .keyBy(row -> (String) row.getField("tenant_id"))
-//                .process(new KeyedProcessFunction<String, Row, TenantRows>() {
-//
-//                    private transient ListState<Row> tenantRows;
-//
-//                    @Override
-//                    public void open(Configuration parameters) {
-//                        ListStateDescriptor<Row> descriptor = new ListStateDescriptor<>(
-//                                "tenantRowsState", Types.ROW());
-//                        tenantRows = getRuntimeContext().getListState(descriptor);
-//                    }
-//
-//                    @Override
-//                    public void processElement(Row row, Context ctx, Collector<TenantRows> out) throws Exception {
-//                        tenantRows.add(row);
-//                        List<Row> current = new ArrayList<>();
-//                        for (Row r : tenantRows.get()) {
-//                            current.add(r);
-//                        }
-//                        out.collect(new TenantRows(ctx.getCurrentKey(), current));
-//                    }
-//                });
-
-
-
-//        MapStateDescriptor<String, List<Row>> broadcastStateDescriptor =
-//                new MapStateDescriptor<>("tenantRows", Types.STRING, Types.LIST(Types.ROW()));
+        DataStream<Row> allRows = tEnv.toDataStream(allData).iterate().setParallelism(1);
 
         TypeInformation<Row> rowTypeInfo = allRows.getType();
         MapStateDescriptor<String, List<Row>> broadcastStateDescriptor =
@@ -139,7 +110,7 @@ public class FlinkJob {
                 WatermarkStrategy.noWatermarks(),
                 sqsQueueUrl.substring(sqsQueueUrl.lastIndexOf('/') + 1),
                 TypeInformation.of(String.class)
-        );
+        ).setParallelism(1);
 
         LOG.info("Created DataStream from SQS!");
         DataStream<String> tenantIdStream = sqsMessages
@@ -154,6 +125,7 @@ public class FlinkJob {
                         return null;
                     }
                 })
+                .setParallelism(1)
                 .returns(Types.STRING)
                 .name("Extract tenant_id");
 
@@ -161,19 +133,9 @@ public class FlinkJob {
         DataStream<LabeledRow> labeledFilteredRows = tenantIdStream
                 .connect(broadcastedIcebergRows)
                 .process(new TenantRowLookupFunction(broadcastStateDescriptor, fieldNames))
+                .setParallelism(1)
                 .returns(Types.POJO(LabeledRow.class))
                 .name("TenantRowFilter with LabeledRow");
-
-
-//        BroadcastStream<String> tenantBroadcast = tenantStream.broadcast(broadcastStateDescriptor);
-
-
-//        DataStream<LabeledRow> labeledFilteredRows = allRows
-//                .connect(tenantBroadcast)
-//                .process(new TenantRowFilterFunction(broadcastStateDescriptor))
-//                .map(row -> new LabeledRow(row, fieldNames))
-//                .returns(Types.POJO(LabeledRow.class))
-//                .name("TenantRowFilter with LabeledRow");
 
         labeledFilteredRows
                 .keyBy(row -> row.getRow().getField("tenant_id").toString())
