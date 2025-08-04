@@ -24,9 +24,19 @@ public class TenantRowLookupFunction extends BroadcastProcessFunction<String, Ro
 
     @Override
     public void processBroadcastElement(Row row, Context ctx, Collector<LabeledRow> out) throws Exception {
-        Object rowTenantId = (String) row.getField("tenant_id");
-        String tenantId = (rowTenantId == null) ? "null" : rowTenantId.toString();
+        Object rowTenantId = row.getField("tenant_id");
+
+        if (rowTenantId == null) {
+            LOG.warn("Skipping row with null tenant_id: {}", row);
+            return;
+        }
+
+        String tenantId = rowTenantId.toString();
+
         List<Row> rowsForTenant = ctx.getBroadcastState(broadcastStateDescriptor).get(tenantId);
+        if (rowsForTenant == null) {
+            rowsForTenant = new ArrayList<>();
+        }
 
         rowsForTenant.add(row);
         ctx.getBroadcastState(broadcastStateDescriptor).put(tenantId, rowsForTenant);
@@ -37,8 +47,10 @@ public class TenantRowLookupFunction extends BroadcastProcessFunction<String, Ro
     @Override
     public void processElement(String tenantId, ReadOnlyContext ctx, Collector<LabeledRow> out) throws Exception {
         if (tenantId == null) {
-            tenantId = "null";
+            LOG.warn("Received null tenantId from SQS — skipping");
+            return;
         }
+
         ReadOnlyBroadcastState<String, List<Row>> state = ctx.getBroadcastState(broadcastStateDescriptor);
         List<Row> tenantRows = state.get(tenantId);
 
