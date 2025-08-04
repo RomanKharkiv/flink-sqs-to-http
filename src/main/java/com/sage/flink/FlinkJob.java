@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
@@ -68,8 +69,8 @@ public class FlinkJob {
         tEnv.useCatalog(dataCatalog);
         tEnv.useDatabase(database);
 
-        MapStateDescriptor<String, String> broadcastStateDescriptor =
-                new MapStateDescriptor<>("TenantBroadcastState", Types.STRING, Types.STRING);
+//        MapStateDescriptor<String, String> broadcastStateDescriptor =
+//                new MapStateDescriptor<>("TenantBroadcastState", Types.STRING, Types.STRING);
 //        Table allData = tEnv.from("businesses");
         Table allData = tEnv.sqlQuery(
                 "SELECT * FROM businesses /*+ OPTIONS(" +
@@ -78,12 +79,45 @@ public class FlinkJob {
                 "'streaming'='true'" +
                 ") */"
         );
+
+
         DataType dataType = allData.getResolvedSchema().toPhysicalRowDataType();
         RowType rowType = (RowType) dataType.getLogicalType();
 
         String[] fieldNames = rowType.getFieldNames().toArray(new String[0]);
         LOG.info("FieldNames: - {}", Arrays.toString(fieldNames));
         DataStream<Row> allRows = tEnv.toDataStream(allData);
+
+//        DataStream<TenantRows> tenantRowMapStream = allRows
+//                .keyBy(row -> (String) row.getField("tenant_id"))
+//                .process(new KeyedProcessFunction<String, Row, TenantRows>() {
+//
+//                    private transient ListState<Row> tenantRows;
+//
+//                    @Override
+//                    public void open(Configuration parameters) {
+//                        ListStateDescriptor<Row> descriptor = new ListStateDescriptor<>(
+//                                "tenantRowsState", Types.ROW());
+//                        tenantRows = getRuntimeContext().getListState(descriptor);
+//                    }
+//
+//                    @Override
+//                    public void processElement(Row row, Context ctx, Collector<TenantRows> out) throws Exception {
+//                        tenantRows.add(row);
+//                        List<Row> current = new ArrayList<>();
+//                        for (Row r : tenantRows.get()) {
+//                            current.add(r);
+//                        }
+//                        out.collect(new TenantRows(ctx.getCurrentKey(), current));
+//                    }
+//                });
+
+
+
+        MapStateDescriptor<String, List<Row>> broadcastStateDescriptor =
+                new MapStateDescriptor<>("tenantRows", Types.STRING, Types.LIST(Types.ROW()));
+
+        BroadcastStream<Row> broadcastedIcebergRows = allRows.broadcast(broadcastStateDescriptor);
 
         CustomSqsSource<String> sqsSource = CustomSqsSource.<String>builder()
                 .queueUrl(sqsQueueUrl)
@@ -102,39 +136,42 @@ public class FlinkJob {
         );
 
         LOG.info("Created DataStream from SQS!");
-        DataStream<String> tenantStream = sqsMessages
+        DataStream<String> tenantIdStream = sqsMessages
                 .map(message -> {
                     JSONObject json = new JSONObject(message);
                     String query = json.getString("query").trim();
-                    LOG.info("Received query: {}", query);
-                    return query;
-                })
-                .filter(query -> TENANT_LOOKUP_PATTERN.matcher(query).matches())
-                .map(query -> {
                     Matcher matcher = TENANT_LOOKUP_PATTERN.matcher(query);
-                    if (!matcher.matches()) {
-                        throw new IllegalStateException("Unexpected non-matching query slipped through filter: " + query);
+                    if (matcher.matches()) {
+                        return matcher.group(3);
+                    } else {
+                        LOG.warn("Invalid query format: {}", query);
+                        return null;
                     }
-                    String tenantId = matcher.group(3);
-                    LOG.info("Received tenantId: {}", tenantId);
-                    return tenantId;
                 })
                 .returns(Types.STRING)
                 .name("Extract tenant_id");
 
-        BroadcastStream<String> tenantBroadcast = tenantStream.broadcast(broadcastStateDescriptor);
 
-
-        DataStream<LabeledRow> labeledFilteredRows = allRows
-                .connect(tenantBroadcast)
-                .process(new TenantRowFilterFunction(broadcastStateDescriptor))
-                .map(row -> new LabeledRow(row, fieldNames))
+        DataStream<LabeledRow> labeledFilteredRows = tenantIdStream
+                .connect(broadcastedIcebergRows)
+                .process(new TenantRowLookupFunction(broadcastStateDescriptor, fieldNames))
                 .returns(Types.POJO(LabeledRow.class))
                 .name("TenantRowFilter with LabeledRow");
 
+
+//        BroadcastStream<String> tenantBroadcast = tenantStream.broadcast(broadcastStateDescriptor);
+
+
+//        DataStream<LabeledRow> labeledFilteredRows = allRows
+//                .connect(tenantBroadcast)
+//                .process(new TenantRowFilterFunction(broadcastStateDescriptor))
+//                .map(row -> new LabeledRow(row, fieldNames))
+//                .returns(Types.POJO(LabeledRow.class))
+//                .name("TenantRowFilter with LabeledRow");
+
         labeledFilteredRows
                 .keyBy(row -> row.getRow().getField("tenant_id").toString())
-                .process(new BatchingRowToJsonFunction(10, 5000)) // 10 rows or 5 sec
+                .process(new BatchingRowToJsonFunction(100, 1000)) // 10 rows or 5 sec
                 .addSink(new ApiSinkFunction(endPointUrl))
                 .name("HTTP Row Batch Sink");
 
