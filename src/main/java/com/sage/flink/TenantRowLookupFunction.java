@@ -17,30 +17,16 @@ public class TenantRowLookupFunction extends BroadcastProcessFunction<String, Ro
     private final MapStateDescriptor<String, List<Row>> broadcastStateDescriptor;
     private final String[] fieldNames;
 
-    public TenantRowLookupFunction(
-            MapStateDescriptor<String, List<Row>> broadcastStateDescriptor,
-            String[] fieldNames
-    ) {
+    public TenantRowLookupFunction(MapStateDescriptor<String, List<Row>> broadcastStateDescriptor, String[] fieldNames) {
         this.broadcastStateDescriptor = broadcastStateDescriptor;
         this.fieldNames = fieldNames;
     }
 
     @Override
-    public void processBroadcastElement(
-            Row row,
-            Context ctx,
-            Collector<LabeledRow> out
-    ) throws Exception {
-        String tenantId = (String) row.getField("tenant_id");
-        if (tenantId == null) {
-            LOG.warn("Row with null tenant_id skipped: {}", row);
-            return;
-        }
-
+    public void processBroadcastElement(Row row, Context ctx, Collector<LabeledRow> out) throws Exception {
+        Object rowTenantId = (String) row.getField("tenant_id");
+        String tenantId = (rowTenantId == null) ? "null" : rowTenantId.toString();
         List<Row> rowsForTenant = ctx.getBroadcastState(broadcastStateDescriptor).get(tenantId);
-        if (rowsForTenant == null) {
-            rowsForTenant = new ArrayList<>();
-        }
 
         rowsForTenant.add(row);
         ctx.getBroadcastState(broadcastStateDescriptor).put(tenantId, rowsForTenant);
@@ -49,11 +35,10 @@ public class TenantRowLookupFunction extends BroadcastProcessFunction<String, Ro
     }
 
     @Override
-    public void processElement(
-            String tenantId,
-            ReadOnlyContext ctx,
-            Collector<LabeledRow> out
-    ) throws Exception {
+    public void processElement(String tenantId, ReadOnlyContext ctx, Collector<LabeledRow> out) throws Exception {
+        if (tenantId == null) {
+            tenantId = "null";
+        }
         ReadOnlyBroadcastState<String, List<Row>> state = ctx.getBroadcastState(broadcastStateDescriptor);
         List<Row> tenantRows = state.get(tenantId);
 

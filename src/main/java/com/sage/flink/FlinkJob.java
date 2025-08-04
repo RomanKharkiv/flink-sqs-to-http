@@ -69,17 +69,7 @@ public class FlinkJob {
         tEnv.useCatalog(dataCatalog);
         tEnv.useDatabase(database);
 
-//        MapStateDescriptor<String, String> broadcastStateDescriptor =
-//                new MapStateDescriptor<>("TenantBroadcastState", Types.STRING, Types.STRING);
-//        Table allData = tEnv.from("businesses");
-        Table allData = tEnv.sqlQuery(
-                "SELECT * FROM businesses /*+ OPTIONS(" +
-                "'monitor-interval'='1s'," +
-                "'scan.incremental.snapshot.enabled'='true'," +
-                "'streaming'='true'" +
-                ") */"
-        );
-
+        Table allData = tEnv.from("businesses");
 
         DataType dataType = allData.getResolvedSchema().toPhysicalRowDataType();
         RowType rowType = (RowType) dataType.getLogicalType();
