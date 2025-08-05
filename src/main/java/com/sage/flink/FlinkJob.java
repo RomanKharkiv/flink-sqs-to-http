@@ -88,12 +88,11 @@ public class FlinkJob {
 
         String[] fieldNames = rowType.getFieldNames().toArray(new String[0]);
         LOG.info("FieldNames: - {}", Arrays.toString(fieldNames));
-        DataStream<Row> allRows = tEnv.toDataStream(allData).iterate().setParallelism(1);
-
+        DataStream<Row> allRows = tEnv.toDataStream(allData);
         TypeInformation<Row> rowTypeInfo = allRows.getType();
+
         MapStateDescriptor<String, List<Row>> broadcastStateDescriptor =
                 new MapStateDescriptor<>("tenantRows", STRING, LIST(rowTypeInfo));
-
         BroadcastStream<Row> broadcastedIcebergRows = allRows.broadcast(broadcastStateDescriptor);
 
         CustomSqsSource<String> sqsSource = CustomSqsSource.<String>builder()
